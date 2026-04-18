@@ -2,6 +2,9 @@
   publish = "public"
   functions = "netlify/functions"
 
+[functions]
+  timeout = 26
+
 [dev]
   port = 8888
 
