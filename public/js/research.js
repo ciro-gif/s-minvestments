@@ -6,6 +6,69 @@
   await requireAuth();
   I18n.init();
 
+  // ---- Tooltip definitions ----
+  const TIPS = {
+    'Market Cap':       'Total market value of all outstanding shares. Large-cap (>$10B) = established company; Mid-cap ($2–10B) = growing; Small-cap (<$2B) = higher risk/reward.',
+    '52W High':         'The highest price traded in the last 52 weeks. Price near this level means the stock is at a peak — watch for potential pullback.',
+    '52W Low':          'The lowest price in the last 52 weeks. Price near its low may be a bargain or a sign of trouble — always understand WHY before buying.',
+    'P/E Ratio':        'Price-to-Earnings: what investors pay per $1 of profit. High P/E = growth expectations priced in. Low P/E = may be undervalued or a declining business. Compare to industry peers.',
+    'EPS':              'Earnings Per Share: net profit divided by shares outstanding. Shows profitability on a per-share basis. Growing EPS over time is a healthy sign.',
+    'Dividend Yield':   'Annual dividend payment as % of stock price. Example: 3% yield on a $100 stock = $3/year income per share. Attractive for income-focused investors.',
+    'Beta':             'Volatility vs. the broader market. Beta >1 = swings more than market (higher risk AND reward). Beta <1 = more stable than market. Beta 0 = uncorrelated.',
+    'Avg Volume':       'Average number of shares traded daily. High volume = liquid market, easy to buy/sell at fair price. Low volume = harder to trade without moving the price.',
+    'Float':            'Shares actually available for public trading (excludes insider/restricted shares). Low float = fewer shares to trade = more volatile price swings.',
+    'Short Float %':    '% of float being sold short (investors betting the price will fall). >10% = notable bearish sentiment. >20% = high short interest, potential for a short squeeze if stock rises.',
+    'Next Earnings':    'Date of next quarterly earnings report. Stock prices often move sharply (±5–20%) after earnings — know this date before holding through it.',
+    'Analyst Target':   'Average 12-month price target from Wall Street analysts. Compare to current price to estimate implied upside or downside from professional coverage.',
+  };
+
+  const FINVIZ_TIPS = {
+    'Analyst Consensus': 'Aggregated Wall Street analyst recommendation on a 1–5 scale. 1 = Strong Buy, 2 = Buy, 3 = Hold, 4 = Sell, 5 = Strong Sell.',
+    'Price Target':      'Consensus analyst price target — where Wall Street collectively expects the stock price in 12 months.',
+    'Short Float':       '% of float sold short. High short interest = many investors betting the price falls. Can cause a "short squeeze" rally if the stock rises.',
+    'Insider Own':       '% of shares owned by executives and board members. High insider ownership (>10%) often signals strong confidence in the company\'s future.',
+    'Inst Own':          '% owned by institutional investors (mutual funds, pension funds, hedge funds). High institutional ownership = strong professional conviction.',
+    'RSI (14)':          'Relative Strength Index over 14 days. Scale of 0–100: >70 = overbought (possible pullback), <30 = oversold (possible bounce). Momentum indicator.',
+    'Forward P/E':       'P/E ratio based on next year\'s expected earnings. If lower than current P/E, analysts expect earnings to grow — generally a positive sign.',
+    'Debt/Eq':           'Debt-to-Equity ratio. Measures financial leverage. >1 means more debt than equity — amplifies both gains and losses. >2 = aggressive leverage.',
+    'EPS next Y':        'Expected earnings-per-share growth rate for the next full year. Analysts\' consensus forecast for profit improvement.',
+    'Perf Week':         'Stock price change over the past 5 trading days.',
+    'Perf Month':        'Stock price change over the past 30 calendar days.',
+    'Perf YTD':          'Stock price change since January 1st of the current year.',
+  };
+
+  const FIN_TIPS = {
+    'Total Revenue':          'All money earned from sales before any expenses. The "top line" — consistent growth here is the foundation of a healthy business.',
+    'Revenue Growth QoQ':     'Quarter-over-quarter revenue change. Accelerating growth = business expanding. Negative = revenue shrinking, which is a warning sign.',
+    'Gross Profit':           'Revenue minus the direct cost of making the product/service. Shows basic profitability before overhead costs like salaries and marketing.',
+    'Gross Margin %':         'Gross Profit as % of Revenue. Higher % = more efficient at delivering the product. Software companies often >70%; retailers 20–30%. Compare to industry.',
+    'R&D':                    'Research & Development spending. Investment in future products and technology. High R&D can hurt short-term profits but build long-term competitive advantage.',
+    'SG&A':                   'Selling, General & Administrative costs — sales teams, marketing, executive salaries. If SG&A grows faster than revenue, efficiency is declining.',
+    'Operating Income':       'Profit from core business operations after all operating expenses. Positive = business is self-sustaining. Negative = burning cash to operate.',
+    'Operating Margin %':     'Operating Income as % of Revenue. Rising margin over time = getting more efficient. Compressing margin = costs growing faster than sales.',
+    'Net Income':             'Final profit after ALL expenses: operations, interest, and taxes. The "bottom line" — what actually flows to shareholders.',
+    'Net Margin %':           'Net Income as % of Revenue. How much of every dollar of sales becomes actual profit. A net margin of 20%+ is considered strong in most industries.',
+    'EPS (Basic)':            'Basic earnings per share using all common shares. Rising EPS over time = company is growing profit per share — a key driver of stock price.',
+    'EPS (Diluted)':          'EPS including all potential shares from options and convertibles — more conservative than basic. This is the standard version analysts use.',
+    'Shares Outstanding':     'Total shares issued by the company. Increasing count = dilution (each share worth a smaller %). Decreasing = share buybacks, which is usually bullish.',
+    'Interest Income':        'Money earned from cash and investments held by the company. Relevant for cash-rich businesses — Tesla and Apple earn billions here.',
+    'Interest Expense':       'Cost of debt — interest paid on loans and bonds. High and rising interest expense eats into profits and signals heavy debt reliance.',
+    'Pre-tax Income':         'Profit before income taxes. Shows operational profitability before government tax treatment — useful for comparing companies across countries.',
+    'Income Tax':             'Taxes paid to governments. Effective tax rate = income tax / pre-tax income. Unusually low tax rates may reflect one-time benefits and may not persist.',
+    'Automotive Revenue':     'Revenue specifically from vehicle sales — the core hardware business.',
+    'Services Revenue':       'Revenue from software, subscriptions, and services — typically higher-margin than hardware and more recurring.',
+    'Total COGS':             'Total cost of goods sold — direct costs of production. Lower COGS relative to revenue = improving gross margins.',
+    'Automotive COGS':        'Direct costs of manufacturing vehicles: materials, labor, factory overhead.',
+    'Services COGS':          'Direct costs of delivering services: hosting, support, content costs.',
+    'Total OpEx':             'Total operating expenses including R&D and SG&A. Measures total cost of running the business beyond production.',
+  };
+
+  function tipHtml(label, tipsMap) {
+    const tip = tipsMap[label];
+    if (!tip) return '';
+    return `<span class="info-tip" data-tip="${Utils.escHtml(tip)}">i</span>`;
+  }
+
   // ---- Routing: read ticker from URL ----
   const params = new URLSearchParams(window.location.search);
   let currentTicker = Utils.normalizeTicker(params.get('ticker') || '');
@@ -106,16 +169,18 @@
     resetToLoading();
 
     // Fetch all data sources in parallel (graceful degradation)
-    const [stockResult, edgarResult] = await Promise.allSettled([
+    const [stockResult, edgarResult, finvizResult] = await Promise.allSettled([
       fetchStockData(ticker),
       fetchEdgarData(ticker),
+      fetchFinvizData(ticker),
     ]);
 
-    const stockData = stockResult.status === 'fulfilled' ? stockResult.value : null;
-    const edgarData = edgarResult.status === 'fulfilled' ? edgarResult.value : null;
+    const stockData  = stockResult.status  === 'fulfilled' ? stockResult.value  : null;
+    const edgarData  = edgarResult.status  === 'fulfilled' ? edgarResult.value  : null;
+    const finvizData = finvizResult.status === 'fulfilled' ? finvizResult.value : null;
 
-    // Log Alpha Vantage usage (stock-data = 2 calls)
-    if (stockData && SM.user) {
+    // Log Alpha Vantage usage (stock-data = 2 calls) only when AV was the source
+    if (stockData?.source === 'alphavantage' && SM.user) {
       SM.supabase.from('api_usage_log').insert({ ticker, calls_consumed: 2 }).then(() => {});
     }
 
@@ -126,6 +191,7 @@
 
     // Render sections
     renderSnapshot(stockData, ticker);
+    renderAnalystSection(finvizData);
     renderFinTable(edgarData);
     renderMetricsCards(edgarData);
 
@@ -147,6 +213,8 @@
     document.title = `$${ticker} — S&M Investments`;
 
     renderSnapshot(snap.stock_data, ticker);
+    // Hide analyst section for snapshots (live Finviz not cached)
+    document.getElementById('analyst-section').style.display = 'none';
     renderFinTable(snap.financial_data);
     renderMetricsCards(snap.financial_data);
     loadPrivateNotes(ticker);
@@ -180,6 +248,7 @@
   function resetToLoading() {
     document.getElementById('snapshot-card').innerHTML =
       '<div class="loading-block"><div class="spinner"></div> Loading market data…</div>';
+    document.getElementById('analyst-section').style.display = 'none';
     document.getElementById('fin-table-wrap').innerHTML =
       '<div class="loading-block"><div class="spinner"></div> Fetching SEC EDGAR data…</div>';
     document.getElementById('ai-panel-body').innerHTML =
@@ -197,13 +266,15 @@
   // ================================================================
 
   async function fetchStockData(ticker) {
-    const data = await Utils.apiFetch(`/api/stock-data?ticker=${encodeURIComponent(ticker)}`);
-    return data;
+    return Utils.apiFetch(`/api/stock-data?ticker=${encodeURIComponent(ticker)}`);
   }
 
   async function fetchEdgarData(ticker) {
-    const data = await Utils.apiFetch(`/api/sec-edgar?ticker=${encodeURIComponent(ticker)}`);
-    return data;
+    return Utils.apiFetch(`/api/sec-edgar?ticker=${encodeURIComponent(ticker)}`);
+  }
+
+  async function fetchFinvizData(ticker) {
+    return Utils.apiFetch(`/api/finviz-data?ticker=${encodeURIComponent(ticker)}`);
   }
 
   // ================================================================
@@ -213,7 +284,7 @@
   function renderSnapshot(d, ticker) {
     const el = document.getElementById('snapshot-card');
     if (!d) {
-      el.innerHTML = `<div class="alert alert-warning">Market data unavailable for ${ticker}. Check your Alpha Vantage API key.</div>`;
+      el.innerHTML = `<div class="alert alert-warning">Market data unavailable for ${ticker}. Tried Alpha Vantage and Yahoo Finance — the ticker may be invalid, delisted, or temporarily unavailable.</div>`;
       return;
     }
 
@@ -224,24 +295,29 @@
     const mktCap = d.marketCap ? Utils.fmtMoney(Number(d.marketCap)) : '—';
 
     const grid = [
-      ['Market Cap',      mktCap],
-      ['52W High',        d.fiftyTwoWeekHigh ? `$${parseFloat(d.fiftyTwoWeekHigh).toFixed(2)}` : '—'],
-      ['52W Low',         d.fiftyTwoWeekLow  ? `$${parseFloat(d.fiftyTwoWeekLow).toFixed(2)}`  : '—'],
-      ['P/E Ratio',       d.pe || '—'],
-      ['EPS',             d.eps ? `$${parseFloat(d.eps).toFixed(2)}` : '—'],
-      ['Dividend Yield',  d.dividendYield ? Utils.fmtPct(parseFloat(d.dividendYield)/100) : '—'],
-      ['Beta',            d.beta ? parseFloat(d.beta).toFixed(2) : '—'],
-      ['Avg Volume',      d.avgVolume ? Utils.fmtMoneyShort(Number(d.avgVolume)) : '—'],
-      ['Float',           d.sharesFloat ? Utils.fmtMoney(Number(d.sharesFloat)) : '—'],
-      ['Short Float %',   d.shortPercentFloat ? Utils.fmtPct(parseFloat(d.shortPercentFloat)/100) : '—'],
-      ['Next Earnings',   d.nextEarnings ? Utils.fmtDate(d.nextEarnings) : '—'],
-      ['Analyst Target',  d.analystTarget ? `$${parseFloat(d.analystTarget).toFixed(2)}` : '—'],
+      ['Market Cap',     mktCap],
+      ['52W High',       d.fiftyTwoWeekHigh ? `$${parseFloat(d.fiftyTwoWeekHigh).toFixed(2)}` : '—'],
+      ['52W Low',        d.fiftyTwoWeekLow  ? `$${parseFloat(d.fiftyTwoWeekLow).toFixed(2)}`  : '—'],
+      ['P/E Ratio',      d.pe || '—'],
+      ['EPS',            d.eps ? `$${parseFloat(d.eps).toFixed(2)}` : '—'],
+      ['Dividend Yield', d.dividendYield ? Utils.fmtPct(parseFloat(d.dividendYield)/100) : '—'],
+      ['Beta',           d.beta ? parseFloat(d.beta).toFixed(2) : '—'],
+      ['Avg Volume',     d.avgVolume ? Utils.fmtMoneyShort(Number(d.avgVolume)) : '—'],
+      ['Float',          d.sharesFloat ? Utils.fmtMoney(Number(d.sharesFloat)) : '—'],
+      ['Short Float %',  d.shortPercentFloat ? Utils.fmtPct(parseFloat(d.shortPercentFloat)/100) : '—'],
+      ['Next Earnings',  d.nextEarnings ? Utils.fmtDate(d.nextEarnings) : '—'],
+      ['Analyst Target', d.analystTarget ? `$${parseFloat(d.analystTarget).toFixed(2)}` : '—'],
     ];
+
+    const sourceTag = d.source === 'yahoo'
+      ? `<span class="tag tag-amber" style="font-size:0.62rem;margin-left:6px">Yahoo Finance</span>`
+      : '';
 
     el.innerHTML = `
       <div class="snapshot-sector">
         ${d.sector ? `<span class="tag tag-blue">${Utils.escHtml(d.sector)}</span>` : ''}
         ${d.industry ? `<span class="tag" style="background:var(--surface3);color:var(--text-muted);border:1px solid var(--border2)">${Utils.escHtml(d.industry)}</span>` : ''}
+        ${sourceTag}
       </div>
       <div class="snapshot-price-row">
         <div class="snapshot-price">${price}</div>
@@ -252,7 +328,7 @@
       <div class="snapshot-grid">
         ${grid.map(([label, val]) => `
           <div class="snapshot-item">
-            <div class="label">${label}</div>
+            <div class="label">${label}${tipHtml(label, TIPS)}</div>
             <div class="value">${Utils.escHtml(String(val))}</div>
           </div>
         `).join('')}
@@ -262,6 +338,101 @@
           <p style="font-size:0.78rem;color:var(--text-muted);line-height:1.65">${Utils.escHtml(d.description.slice(0, 400))}${d.description.length > 400 ? '…' : ''}</p>
         </div>
       ` : ''}
+    `;
+  }
+
+  function renderAnalystSection(d) {
+    const section = document.getElementById('analyst-section');
+    const card = document.getElementById('analyst-card');
+
+    if (!d || (!d.analystRecom && !d.targetPrice)) {
+      section.style.display = 'none';
+      return;
+    }
+
+    section.style.display = 'block';
+
+    // Consensus pill color
+    const score = d.analystRecomScore;
+    let recommColor = 'var(--text-muted)';
+    if (score <= 1.5) recommColor = '#00C48C';
+    else if (score <= 2.5) recommColor = '#4ADB9E';
+    else if (score <= 3.5) recommColor = '#F5A623';
+    else if (score <= 4.5) recommColor = '#FF7A7A';
+    else if (score)        recommColor = '#FF4D4D';
+
+    // Build gauge bar (1=left=buy, 5=right=sell)
+    const gaugePct = score ? ((score - 1) / 4) * 100 : 50;
+
+    const rows = [
+      ['Price Target',     d.targetPrice,       FINVIZ_TIPS['Price Target']],
+      ['Short Float',      d.shortFloat,        FINVIZ_TIPS['Short Float']],
+      ['Insider Own',      d.insiderOwn,        FINVIZ_TIPS['Insider Own']],
+      ['Inst Own',         d.institutionalOwn,  FINVIZ_TIPS['Inst Own']],
+      ['RSI (14)',         d.rsi14,             FINVIZ_TIPS['RSI (14)']],
+      ['Forward P/E',      d.forwardPE,         FINVIZ_TIPS['Forward P/E']],
+      ['Debt/Eq',          d.debtEquity,        FINVIZ_TIPS['Debt/Eq']],
+      ['EPS next Y',       d.epsNextY,          FINVIZ_TIPS['EPS next Y']],
+    ].filter(([, val]) => val);
+
+    const perfRows = [
+      ['Perf Week',  d.perfWeek,  FINVIZ_TIPS['Perf Week']],
+      ['Perf Month', d.perfMonth, FINVIZ_TIPS['Perf Month']],
+      ['Perf YTD',   d.perfYTD,   FINVIZ_TIPS['Perf YTD']],
+    ].filter(([, val]) => val);
+
+    function perfColor(val) {
+      if (!val) return 'var(--text-muted)';
+      return val.startsWith('-') ? 'var(--red)' : 'var(--green)';
+    }
+
+    card.innerHTML = `
+      <div class="card" style="display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:start">
+        <!-- Consensus pill -->
+        <div style="text-align:center;min-width:140px">
+          ${d.analystRecomLabel ? `
+            <div style="font-size:1.3rem;font-weight:700;color:${recommColor};font-family:var(--font-mono);margin-bottom:4px">
+              ${Utils.escHtml(d.analystRecomLabel)}
+            </div>
+            <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:10px">
+              Score: ${score ? score.toFixed(2) : '—'} / 5.0
+              <span class="info-tip" data-tip="${Utils.escHtml(FINVIZ_TIPS['Analyst Consensus'])}">i</span>
+            </div>
+            <div style="height:6px;background:var(--surface3);border-radius:3px;position:relative;overflow:hidden;margin-bottom:4px">
+              <div style="position:absolute;left:0;top:0;bottom:0;width:${gaugePct.toFixed(1)}%;background:linear-gradient(90deg,var(--green),var(--amber),var(--red));border-radius:3px"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.6rem;color:var(--text-dim)">
+              <span>Buy</span><span>Hold</span><span>Sell</span>
+            </div>
+          ` : '<div style="color:var(--text-muted);font-size:0.8rem">No consensus data</div>'}
+          ${d.earnings ? `<div style="margin-top:12px;font-size:0.72rem;color:var(--text-muted)">Earnings: <span style="color:var(--amber)">${Utils.escHtml(d.earnings)}</span></div>` : ''}
+        </div>
+
+        <!-- Stats grid -->
+        <div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:12px">
+            ${rows.map(([label, val, tip]) => `
+              <div class="snapshot-item">
+                <div class="label">${label}${tip ? `<span class="info-tip" data-tip="${Utils.escHtml(tip)}">i</span>` : ''}</div>
+                <div class="value">${Utils.escHtml(String(val))}</div>
+              </div>
+            `).join('')}
+          </div>
+          ${perfRows.length ? `
+            <div style="display:flex;gap:16px;padding-top:10px;border-top:1px solid var(--border)">
+              ${perfRows.map(([label, val, tip]) => `
+                <div>
+                  <div style="font-size:0.65rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px">
+                    ${label}${tip ? `<span class="info-tip" data-tip="${Utils.escHtml(tip)}">i</span>` : ''}
+                  </div>
+                  <div style="font-family:var(--font-mono);font-weight:700;font-size:0.85rem;color:${perfColor(val)}">${Utils.escHtml(val)}</div>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+        </div>
+      </div>
+      <div style="font-size:0.65rem;color:var(--text-dim);margin-top:6px;padding:0 4px">Source: Finviz</div>
     `;
   }
 
@@ -275,7 +446,6 @@
     const { quarters, metrics } = d;
     const m = metrics;
 
-    // Calculate derived rows
     const grossMarginPct = calcPctOf(m.grossProfit, m.totalRevenue);
     const opMarginPct    = calcPctOf(m.operatingIncome, m.totalRevenue);
     const netMarginPct   = calcPctOf(m.netIncome, m.totalRevenue);
@@ -309,7 +479,7 @@
       {
         label: 'Operating Expenses',
         rows: [
-          { label: 'R&D',                 key: 'researchAndDevelopment', vals: m.researchAndDevelopment },
+          { label: 'R&D',                 key: 'researchAndDevelopment',       vals: m.researchAndDevelopment },
           { label: 'SG&A',               key: 'sellingGeneralAdministrative', vals: m.sellingGeneralAdministrative },
           { label: 'Total OpEx',         key: 'operatingExpenses',   vals: m.operatingExpenses },
           { label: 'Operating Income',   key: 'operatingIncome',     vals: m.operatingIncome,     bold: true },
@@ -337,9 +507,7 @@
       },
     ];
 
-    const thCells = quarters.map(q =>
-      `<th>${Utils.escHtml(q)}</th>`
-    ).join('');
+    const thCells = quarters.map(q => `<th>${Utils.escHtml(q)}</th>`).join('');
 
     let tableHTML = `
       <table class="fin-table">
@@ -353,7 +521,6 @@
     `;
 
     for (const section of sections) {
-      // Check if section has any data at all
       const hasData = section.rows.some(r => r.vals && r.vals.some(v => v !== null));
       if (!hasData) continue;
 
@@ -371,15 +538,11 @@
           return renderCell(val, row);
         }).join('');
 
-        const rowCls = [
-          'metric-row',
-          row.bold ? 'bold-row' : '',
-          row.calc ? 'calc-row' : '',
-        ].filter(Boolean).join(' ');
+        const rowCls = ['metric-row', row.bold ? 'bold-row' : '', row.calc ? 'calc-row' : ''].filter(Boolean).join(' ');
 
         tableHTML += `
           <tr class="${rowCls}">
-            <td>${Utils.escHtml(row.label)}</td>
+            <td>${Utils.escHtml(row.label)}${tipHtml(row.label, FIN_TIPS)}</td>
             ${cells}
           </tr>
         `;
@@ -391,12 +554,9 @@
   }
 
   function renderCell(val, row) {
-    if (val === null || val === undefined) {
-      return `<td class="null-val">—</td>`;
-    }
+    if (val === null || val === undefined) return `<td class="null-val">—</td>`;
 
-    let text;
-    let colorStyle = '';
+    let text, colorStyle = '';
 
     if (row.eps) {
       text = `$${parseFloat(val).toFixed(2)}`;
@@ -406,15 +566,12 @@
       colorStyle = val >= 0 ? 'color:var(--green)' : 'color:var(--red)';
     } else if (row.shares) {
       text = `${(val / 1e6).toFixed(1)}M`;
-      colorStyle = '';
     } else {
-      // Money value in thousands display
       const abs = Math.abs(val);
       if (abs >= 1e9)      text = `${(val / 1e9).toFixed(2)}B`;
       else if (abs >= 1e6) text = `${(val / 1e6).toFixed(1)}M`;
       else if (abs >= 1e3) text = `${(val / 1e3).toFixed(0)}K`;
       else                 text = val.toLocaleString();
-
       colorStyle = val >= 0 ? 'color:var(--text)' : 'color:var(--red)';
     }
 
@@ -448,15 +605,15 @@
       return;
     }
 
-    const { quarters, metrics: m } = d;
+    const { metrics: m } = d;
 
     const cards = [
-      { label: 'Revenue',           key: 'totalRevenue',     vals: m.totalRevenue,     color: '#00C48C', format: 'money' },
-      { label: 'Gross Margin',      key: 'grossMarginPct',   vals: calcPctOf(m.grossProfit, m.totalRevenue), color: '#4A9EFF', format: 'pct' },
-      { label: 'Net Income',        key: 'netIncome',        vals: m.netIncome,         color: '#A78BFA', format: 'money' },
-      { label: 'EPS (Diluted)',     key: 'epsDiluted',       vals: m.epsDiluted,        color: '#F5A623', format: 'eps' },
-      { label: 'Operating Expenses',key: 'operatingExpenses',vals: m.operatingExpenses, color: '#FF4D4D', format: 'money' },
-      { label: 'R&D Spend',        key: 'researchAndDevelopment', vals: m.researchAndDevelopment, color: '#4A9EFF', format: 'money' },
+      { label: 'Revenue',            key: 'totalRevenue',     vals: m.totalRevenue,     color: '#00C48C', format: 'money' },
+      { label: 'Gross Margin',       key: 'grossMarginPct',   vals: calcPctOf(m.grossProfit, m.totalRevenue), color: '#4A9EFF', format: 'pct' },
+      { label: 'Net Income',         key: 'netIncome',        vals: m.netIncome,         color: '#A78BFA', format: 'money' },
+      { label: 'EPS (Diluted)',      key: 'epsDiluted',       vals: m.epsDiluted,        color: '#F5A623', format: 'eps' },
+      { label: 'Operating Expenses', key: 'operatingExpenses',vals: m.operatingExpenses, color: '#FF4D4D', format: 'money' },
+      { label: 'R&D Spend',         key: 'researchAndDevelopment', vals: m.researchAndDevelopment, color: '#4A9EFF', format: 'money' },
     ];
 
     el.innerHTML = cards.map(card => {
@@ -501,20 +658,17 @@
   async function fetchAndRenderNews(ticker, company) {
     const newsEl = document.getElementById('news-list');
     try {
-      // Alpha Vantage NEWS_SENTIMENT returns articles with sentiment pre-scored
       const { articles } = await Utils.apiFetch(
         `/api/news-fetch?ticker=${encodeURIComponent(ticker)}`
       );
 
       if (!articles || articles.length === 0) {
-        newsEl.innerHTML = `<div class="alert alert-info">No recent news found for ${ticker}. Alpha Vantage may not have news coverage for this ticker.</div>`;
+        newsEl.innerHTML = `<div class="alert alert-info">No recent news found for ${ticker}.</div>`;
         return;
       }
 
-      // Log Alpha Vantage usage (news-fetch = 1 call)
       if (SM.user) SM.supabase.from('api_usage_log').insert({ ticker, calls_consumed: 1 }).then(() => {});
 
-      // Sentiment already attached from Alpha Vantage — render immediately
       newsEl.innerHTML = articles.map((a, i) => renderNewsItem(a, i, a.sentiment || 'Neutral')).join('');
     } catch (err) {
       newsEl.innerHTML = `<div class="alert alert-error">News fetch failed: ${Utils.escHtml(err.message)}</div>`;
@@ -572,11 +726,7 @@
         }),
       });
 
-      aiBody.innerHTML = `
-        <div class="ai-content">${Utils.renderMarkdown(analysis)}</div>
-      `;
-
-      // Auto-open the panel when analysis is ready
+      aiBody.innerHTML = `<div class="ai-content">${Utils.renderMarkdown(analysis)}</div>`;
       aiBody.classList.add('open');
       document.getElementById('ai-chevron').classList.add('open');
     } catch (err) {
@@ -607,7 +757,6 @@
         changePercent: stockData.changePercent,
       } : null;
 
-      // Upsert-style: insert new row each time (history log, not deduplicated)
       await SM.supabase.from('research_history').insert({
         user_id: SM.user.id,
         ticker,
@@ -648,8 +797,7 @@
 
     el.querySelectorAll('.delete-note-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const id = btn.dataset.id;
-        await SM.supabase.from('private_notes').delete().eq('id', id);
+        await SM.supabase.from('private_notes').delete().eq('id', btn.dataset.id);
         loadPrivateNotes(ticker);
       });
     });

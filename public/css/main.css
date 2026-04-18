@@ -166,6 +166,56 @@ code, .mono { font-family: var(--font-mono); }
 }
 .lang-toggle:hover { color: var(--green); border-color: var(--green); }
 
+/* ---- Info tooltips ---- */
+.info-tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  color: var(--text-dim);
+  font-size: 0.58rem;
+  font-style: normal;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  cursor: help;
+  margin-left: 4px;
+  position: relative;
+  vertical-align: middle;
+  flex-shrink: 0;
+  transition: color 0.15s, border-color 0.15s;
+}
+.info-tip:hover { color: var(--blue); border-color: var(--blue); }
+
+.info-tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-size: 0.72rem;
+  line-height: 1.55;
+  padding: 9px 11px;
+  border-radius: var(--radius);
+  width: 230px;
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 300;
+  font-family: var(--font-sans);
+  font-weight: 400;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+  text-align: left;
+}
+.info-tip:hover::after { opacity: 1; }
+
 /* ---- Main layout ---- */
 .page-body { padding-top: var(--nav-h); min-height: 100vh; }
 .container { max-width: 1400px; margin: 0 auto; padding: 0 20px; }
