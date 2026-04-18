@@ -4,6 +4,7 @@
 
 (async () => {
   await requireAuth();
+  I18n.init();
 
   // ---- Routing: read ticker from URL ----
   const params = new URLSearchParams(window.location.search);
@@ -567,6 +568,7 @@
           quarters: edgarData?.quarters,
           metrics: edgarData?.metrics,
           stockData,
+          lang: typeof I18n !== 'undefined' ? I18n.getLang() : 'en',
         }),
       });
 

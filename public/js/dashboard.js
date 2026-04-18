@@ -4,6 +4,7 @@
 
 (async () => {
   await requireAuth();
+  I18n.init();
 
   // ---- Search ----
   const tickerInput = document.getElementById('ticker-input');
@@ -377,7 +378,7 @@
             const r = await Utils.apiFetch('/api/anthropic-analysis', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ticker: item.ticker, company: companyName, quarters: edgarData?.quarters, metrics: edgarData?.metrics, stockData }),
+              body: JSON.stringify({ ticker: item.ticker, company: companyName, quarters: edgarData?.quarters, metrics: edgarData?.metrics, stockData, lang: I18n.getLang() }),
             });
             aiAnalysis = r.analysis;
           } catch { /* optional */ }

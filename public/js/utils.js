@@ -130,6 +130,11 @@ const Utils = {
     for (const raw of lines) {
       const line = raw.trimEnd();
 
+      if (line.startsWith('# ') && !line.startsWith('## ')) {
+        if (inList) { html.push('</ul>'); inList = false; }
+        html.push(`<h2>${this._inline(line.slice(2))}</h2>`);
+        continue;
+      }
       if (line.startsWith('## ')) {
         if (inList) { html.push('</ul>'); inList = false; }
         html.push(`<h2>${this._inline(line.slice(3))}</h2>`);

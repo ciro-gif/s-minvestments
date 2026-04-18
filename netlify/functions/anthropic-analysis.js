@@ -17,18 +17,21 @@ function fmtVal(val, key) {
   return `$${Number(val).toLocaleString()}`;
 }
 
-function buildPrompt(ticker, company, quarters, metrics, stockData) {
+function buildPrompt(ticker, company, quarters, metrics, stockData, lang) {
+  const inSpanish = lang === 'es';
+
   const ROWS = {
-    totalRevenue: 'Total Revenue',
-    grossProfit: 'Gross Profit',
-    operatingIncome: 'Operating Income',
-    netIncome: 'Net Income',
-    epsBasic: 'EPS (Basic)',
-    epsDiluted: 'EPS (Diluted)',
-    researchAndDevelopment: 'R&D Expense',
+    totalRevenue:               'Total Revenue',
+    grossProfit:                'Gross Profit',
+    operatingIncome:            'Operating Income',
+    netIncome:                  'Net Income',
+    epsBasic:                   'EPS (Basic)',
+    epsDiluted:                 'EPS (Diluted)',
+    researchAndDevelopment:     'R&D Expense',
     sellingGeneralAdministrative: 'SG&A',
-    incomeTax: 'Income Tax',
-    sharesOutstanding: 'Shares Outstanding',
+    costOfRevenue:              'Cost of Revenue',
+    incomeTax:                  'Income Tax',
+    sharesOutstanding:          'Shares Outstanding',
   };
 
   const useQuarters = (quarters || []).slice(-8);
@@ -43,36 +46,83 @@ function buildPrompt(ticker, company, quarters, metrics, stockData) {
     })
     .join('\n');
 
+  // Derive margin trends for the prompt context
+  const rev = (metrics.totalRevenue || []).slice(offset);
+  const gp  = (metrics.grossProfit || []).slice(offset);
+  const oi  = (metrics.operatingIncome || []).slice(offset);
+  const ni  = (metrics.netIncome || []).slice(offset);
+  const computeMargin = (num, den) => num && den && den !== 0 ? ((num / den) * 100).toFixed(1) + '%' : 'N/A';
+
+  const latestIdx = rev.length - 1;
+  const earliestIdx = 0;
+  const marginContext = rev[latestIdx] ? `
+Derived Margins (latest quarter):
+  Gross Margin: ${computeMargin(gp[latestIdx], rev[latestIdx])}
+  Operating Margin: ${computeMargin(oi[latestIdx], rev[latestIdx])}
+  Net Margin: ${computeMargin(ni[latestIdx], rev[latestIdx])}
+Derived Margins (earliest quarter in dataset):
+  Gross Margin: ${computeMargin(gp[earliestIdx], rev[earliestIdx])}
+  Operating Margin: ${computeMargin(oi[earliestIdx], rev[earliestIdx])}
+  Net Margin: ${computeMargin(ni[earliestIdx], rev[earliestIdx])}` : '';
+
   const stockSummary = stockData ? `
-Current Snapshot:
+Current Market Snapshot:
   Price: $${stockData.price || 'N/A'} (${stockData.changePercent || 'N/A'} today)
   Market Cap: ${stockData.marketCap ? '$' + (Number(stockData.marketCap) / 1e9).toFixed(2) + 'B' : 'N/A'}
   P/E Ratio: ${stockData.pe || 'N/A'}
+  EPS: ${stockData.eps ? '$' + stockData.eps : 'N/A'}
   Beta: ${stockData.beta || 'N/A'}
-  52-Week Range: $${stockData.fiftyTwoWeekLow || 'N/A'} – $${stockData.fiftyTwoWeekHigh || 'N/A'}` : '';
+  52-Week Range: $${stockData.fiftyTwoWeekLow || 'N/A'} – $${stockData.fiftyTwoWeekHigh || 'N/A'}
+  Analyst Price Target: ${stockData.analystTarget ? '$' + stockData.analystTarget : 'N/A'}
+  Dividend Yield: ${stockData.dividendYield || 'N/A'}
+  Sector: ${stockData.sector || 'N/A'}` : '';
 
-  return `You are a financial analyst assistant for S&M Investments, a private investment club. Analyze the following quarterly financial data for ${company} (${ticker}) and write a structured analysis.
+  const langInstruction = inSpanish
+    ? 'IMPORTANTE: Escribe TODA tu respuesta en español. Usa terminología financiera en español cuando sea posible, pero puedes mantener los términos técnicos en inglés si no tienen traducción directa (ej. "earnings", "P/E ratio").\n\n'
+    : '';
 
-Financial Model (last 8 quarters):
+  return `${langInstruction}You are a senior financial analyst writing a research note for S&M Investments, a private investment club whose members are beginners learning to analyze stocks. Your goal is twofold: give a genuinely expert analysis AND teach the members what each concept means as you go.
+
+Company: ${company} (${ticker})
+
+Quarterly Financial Data (last 8 quarters):
 ${tableRows}
+${marginContext}
 ${stockSummary}
 
-Write your analysis with these four sections, using markdown headers:
+Write a complete analyst research note with the following sections. Use ## for section headers. Do NOT add a document title at the top.
 
-## Summary
-2–3 paragraphs in plain English: What does this financial model reveal about the business? How has performance trended?
+## Executive Summary
+Write 2–3 paragraphs that tell the full story of this business. What has happened to revenue, profitability, and efficiency over this period? Is the trend improving or deteriorating? What is the single most important thing an investor should know about this company right now? Be specific with numbers.
 
-## Notable Trends
-Bullet points highlighting the most important trends — revenue growth rate, margin expansion/compression, earnings trajectory, expense changes. Be specific with numbers.
+## Business Health: What the Numbers Say
+Analyze these areas with specific data points:
+- **Revenue trend**: Is growth accelerating, decelerating, or reversing? What does the growth rate tell us?
+- **Gross margin**: Is the company getting better or worse at making money on each sale? What does this mean competitively?
+- **Operating leverage**: Are expenses growing faster or slower than revenue? What does that mean for future profitability?
+- **Net income & EPS trajectory**: Where is actual profit going? Is EPS expanding or compressing and why?
+- **R&D and SG&A**: Are these investments in the future or signs of bloated costs?
 
-## What This Means for Investors
-Explain what Revenue, Gross Profit, Operating Income, and Net Income each mean and why they matter. Assume the reader is learning to analyze stocks for the first time.
+## Valuation Context
+${stockData ? `Using the available market data (P/E: ${stockData.pe || 'N/A'}, Market Cap: ${stockData.marketCap ? '$' + (Number(stockData.marketCap)/1e9).toFixed(1)+'B' : 'N/A'}):
+- Is the current P/E ratio high, low, or reasonable given the earnings trend?
+- What would the company need to deliver to justify its current price?
+- How does the 52-week range ($${stockData.fiftyTwoWeekLow || 'N/A'}–$${stockData.fiftyTwoWeekHigh || 'N/A'}) reflect investor sentiment shifts?
+- What is Beta (${stockData.beta || 'N/A'}) telling us about this stock's risk profile?` : 'Market data was unavailable for this analysis. Discuss what valuation metrics investors should look for when researching this company.'}
 
-## Key Watch Items
-3–5 bullet points on what an investor should monitor based on these numbers. What could positively or negatively impact the stock going forward?
+## Beginner's Glossary: Understanding These Numbers
+Briefly explain what each of these means in plain language (2–3 sentences each) — write this as if explaining to someone who just started learning about stocks:
+- **Revenue** (Ingresos): What it is and why it matters
+- **Gross Profit & Gross Margin**: The difference between selling and profiting
+- **Operating Income**: What's left after running the business
+- **Net Income & EPS**: The bottom line — what shareholders actually earn
+- **P/E Ratio**: How to think about whether a stock is "expensive"
+
+## Key Watch Items for Investors
+Give 4–6 specific, actionable bullet points. For each one, explain: (1) what to watch, (2) why it matters, and (3) whether the current data is a green flag, yellow flag, or red flag. Be direct with your opinion.
 
 ---
-⚠️ This is data interpretation only, not financial advice. Past performance does not indicate future results.`;
+⚠️ This is data interpretation and education only — not financial advice. Past performance does not indicate future results. Always do your own research before investing.`;
 }
 
 exports.handler = async (event) => {
@@ -87,10 +137,10 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { ticker, company, quarters, metrics, stockData } = JSON.parse(event.body || '{}');
+    const { ticker, company, quarters, metrics, stockData, lang } = JSON.parse(event.body || '{}');
     if (!ticker) throw new Error('ticker required in request body');
 
-    const prompt = buildPrompt(ticker, company, quarters, metrics, stockData);
+    const prompt = buildPrompt(ticker, company, quarters, metrics, stockData, lang || 'en');
 
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -101,7 +151,7 @@ exports.handler = async (event) => {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1500,
+        max_tokens: 2500,
         messages: [{ role: 'user', content: prompt }],
       }),
     });

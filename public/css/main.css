@@ -151,6 +151,21 @@ code, .mono { font-family: var(--font-mono); }
 
 .btn-logout:hover { color: var(--text); border-color: var(--text-muted); }
 
+.lang-toggle {
+  background: none;
+  border: 1px solid var(--border2);
+  color: var(--text-dim);
+  padding: 3px 8px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  transition: color 0.15s, border-color 0.15s;
+}
+.lang-toggle:hover { color: var(--green); border-color: var(--green); }
+
 /* ---- Main layout ---- */
 .page-body { padding-top: var(--nav-h); min-height: 100vh; }
 .container { max-width: 1400px; margin: 0 auto; padding: 0 20px; }

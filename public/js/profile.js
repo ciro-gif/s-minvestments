@@ -4,6 +4,7 @@
 
 (async () => {
   await requireAuth();
+  I18n.init();
 
   // ---- Tab switching ----
   document.querySelectorAll('.tab-btn').forEach(btn => {

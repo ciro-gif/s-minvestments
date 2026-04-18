@@ -4,6 +4,7 @@
 
 (async () => {
   await requireAuth();
+  I18n.init();
 
   let currentFilter = 'all';
   let uploadedImageUrl = null;
