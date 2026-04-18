@@ -74,13 +74,32 @@
   // Main research orchestrator
   // ================================================================
 
-  async function runResearch(ticker) {
+  async function runResearch(ticker, forceRefresh = false) {
     document.getElementById('research-empty').style.display = 'none';
     document.getElementById('research-content').style.display = 'block';
 
     document.getElementById('r-ticker').textContent = `$${ticker}`;
     document.getElementById('r-company').textContent = '';
     document.getElementById('ai-ticker-label').textContent = ticker;
+
+    // Check for a fresh auto-processed snapshot (< 24h) before hitting live APIs
+    if (!forceRefresh) {
+      try {
+        const { data: snap } = await SM.supabase
+          .from('ticker_snapshots')
+          .select('*')
+          .eq('ticker', ticker)
+          .maybeSingle();
+
+        if (snap) {
+          const ageHours = (Date.now() - new Date(snap.snapped_at)) / 3600000;
+          if (ageHours < 24) {
+            renderFromSnapshot(snap, ticker);
+            return;
+          }
+        }
+      } catch { /* fall through to live fetch */ }
+    }
 
     // Reset sections to loading state
     resetToLoading();
@@ -93,6 +112,11 @@
 
     const stockData = stockResult.status === 'fulfilled' ? stockResult.value : null;
     const edgarData = edgarResult.status === 'fulfilled' ? edgarResult.value : null;
+
+    // Log Alpha Vantage usage (stock-data = 2 calls)
+    if (stockData && SM.user) {
+      SM.supabase.from('api_usage_log').insert({ ticker, calls_consumed: 2 }).then(() => {});
+    }
 
     // Render company name
     const companyName = edgarData?.company || stockData?.name || ticker;
@@ -115,6 +139,41 @@
 
     // AI analysis (depends on edgar + stock data)
     fetchAndRenderAI(ticker, companyName, edgarData, stockData);
+  }
+
+  function renderFromSnapshot(snap, ticker) {
+    document.getElementById('r-company').textContent = snap.company_name || ticker;
+    document.title = `$${ticker} — S&M Investments`;
+
+    renderSnapshot(snap.stock_data, ticker);
+    renderFinTable(snap.financial_data);
+    renderMetricsCards(snap.financial_data);
+    loadPrivateNotes(ticker);
+
+    // News from cache
+    const newsEl = document.getElementById('news-list');
+    const articles = snap.news_data?.articles || [];
+    newsEl.innerHTML = articles.length
+      ? articles.map((a, i) => renderNewsItem(a, i, a.sentiment || 'Neutral')).join('')
+      : `<div class="alert alert-info">No news cached for ${ticker}.</div>`;
+
+    // AI from cache with refresh option
+    const aiBody = document.getElementById('ai-panel-body');
+    if (snap.ai_analysis) {
+      aiBody.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface2);border-radius:var(--radius);margin-bottom:12px;font-size:0.75rem;color:var(--text-muted)">
+          <span style="color:var(--amber)">●</span>
+          Pre-computed snapshot · ${Utils.fmtRelative(snap.snapped_at)}
+          <button id="snap-refresh-btn" class="btn btn-ghost btn-sm" style="margin-left:auto;font-size:0.72rem">Refresh live data</button>
+        </div>
+        <div class="ai-content">${Utils.renderMarkdown(snap.ai_analysis)}</div>
+      `;
+      aiBody.classList.add('open');
+      document.getElementById('ai-chevron').classList.add('open');
+      document.getElementById('snap-refresh-btn').addEventListener('click', () => runResearch(ticker, true));
+    } else {
+      aiBody.innerHTML = '<div style="color:var(--text-muted);font-size:0.82rem;padding:12px">No AI analysis cached.</div>';
+    }
   }
 
   function resetToLoading() {
@@ -450,6 +509,9 @@
         newsEl.innerHTML = `<div class="alert alert-info">No recent news found for ${ticker}. Alpha Vantage may not have news coverage for this ticker.</div>`;
         return;
       }
+
+      // Log Alpha Vantage usage (news-fetch = 1 call)
+      if (SM.user) SM.supabase.from('api_usage_log').insert({ ticker, calls_consumed: 1 }).then(() => {});
 
       // Sentiment already attached from Alpha Vantage — render immediately
       newsEl.innerHTML = articles.map((a, i) => renderNewsItem(a, i, a.sentiment || 'Neutral')).join('');

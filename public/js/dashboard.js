@@ -18,12 +18,21 @@
     window.location.href = `/research.html?ticker=${encodeURIComponent(t)}`;
   }
 
+  // ---- Queue submit ----
+  document.getElementById('queue-submit-btn').addEventListener('click', submitToQueue);
+  document.getElementById('queue-ticker-input').addEventListener('keydown', e => { if (e.key === 'Enter') submitToQueue(); });
+
   // ---- Load all data in parallel ----
   const [historyRes, postsRes, membersRes] = await Promise.allSettled([
     loadHistory(),
     loadRecentPosts(),
     loadMembers(),
+    loadApiUsage(),
+    loadQueue(),
   ]);
+
+  // Run auto-processor in background (uses spare daily API budget)
+  autoProcess();
 
   // ---- History ----
   async function loadHistory() {
@@ -179,6 +188,229 @@
         `).join('')}
       </div>
     `;
+  }
+
+  // ================================================================
+  // API Usage
+  // ================================================================
+
+  async function loadApiUsage() {
+    const el = document.getElementById('api-usage-wrap');
+    const today = new Date().toISOString().split('T')[0];
+
+    const { data } = await SM.supabase
+      .from('api_usage_log')
+      .select('calls_consumed')
+      .gte('called_at', `${today}T00:00:00Z`);
+
+    const used = (data || []).reduce((sum, r) => sum + r.calls_consumed, 0);
+    const remaining = Math.max(0, 25 - used);
+    const pct = Math.min(100, (used / 25) * 100);
+    const barColor = pct >= 80 ? 'var(--red)' : pct >= 50 ? 'var(--amber)' : 'var(--green)';
+    const processable = Math.floor(remaining / 3);
+
+    el.innerHTML = `
+      <div style="display:flex;justify-content:space-between;font-size:0.78rem">
+        <span style="color:var(--text-muted)">${used} / 25 calls used today</span>
+        <span style="color:${barColor};font-weight:600">${remaining} remaining</span>
+      </div>
+      <div class="usage-bar-wrap">
+        <div class="usage-bar-fill" style="width:${pct}%;background:${barColor}"></div>
+      </div>
+      <div style="font-size:0.68rem;color:var(--text-dim)">
+        Resets midnight UTC · ~${processable} ticker${processable !== 1 ? 's' : ''} can auto-process today
+      </div>
+    `;
+  }
+
+  // ================================================================
+  // Queue
+  // ================================================================
+
+  async function loadQueue() {
+    const el = document.getElementById('queue-list');
+    const countEl = document.getElementById('queue-count');
+
+    const { data } = await SM.supabase
+      .from('ticker_queue')
+      .select('*, profiles(display_name)')
+      .order('submitted_at', { ascending: false })
+      .limit(40);
+
+    if (!data || data.length === 0) {
+      el.innerHTML = '<div style="color:var(--text-muted);font-size:0.82rem;padding:4px 0">Queue is empty — submit a ticker above.</div>';
+      countEl.textContent = '';
+      return;
+    }
+
+    const pending = data.filter(r => r.status === 'pending' || r.status === 'processing').length;
+    const done = data.filter(r => r.status === 'done').length;
+    countEl.textContent = `${pending} pending · ${done} done`;
+
+    const dotColor = { pending: 'var(--amber)', processing: 'var(--blue)', done: 'var(--green)', failed: 'var(--red)' };
+
+    el.innerHTML = data.map(item => {
+      const isOwn = SM.user && item.submitted_by === SM.user.id;
+      const isDone = item.status === 'done';
+      const color = dotColor[item.status] || 'var(--text-muted)';
+
+      return `
+        <div class="queue-item${isDone ? ' queue-done-link' : ''}"
+             ${isDone ? `onclick="window.location.href='/research.html?ticker=${encodeURIComponent(item.ticker)}'"` : ''}>
+          <div class="queue-status-dot" style="background:${color}"></div>
+          <div class="queue-item-body">
+            <div class="queue-ticker">$${Utils.escHtml(item.ticker)}
+              <span style="font-family:var(--font-sans);font-weight:400;font-size:0.67rem;color:var(--text-dim);margin-left:6px">${item.status}</span>
+              ${isDone ? '<span style="font-size:0.67rem;color:var(--green);margin-left:4px">· tap to view</span>' : ''}
+            </div>
+            ${item.notes ? `<div class="queue-notes">${Utils.escHtml(item.notes)}</div>` : ''}
+            <div class="queue-meta">
+              ${Utils.escHtml(item.profiles?.display_name || '?')} · ${Utils.fmtRelative(item.submitted_at)}
+              ${item.error_msg ? `<span style="color:var(--red)"> · ${Utils.escHtml(item.error_msg.slice(0, 80))}</span>` : ''}
+            </div>
+          </div>
+          ${isOwn && (item.status === 'pending') ? `
+            <button class="btn btn-ghost btn-sm queue-del-btn" data-id="${item.id}"
+                    style="padding:2px 8px;font-size:0.7rem;flex-shrink:0" onclick="event.stopPropagation()">✕</button>
+          ` : ''}
+        </div>
+      `;
+    }).join('');
+
+    el.querySelectorAll('.queue-del-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        await SM.supabase.from('ticker_queue').delete().eq('id', btn.dataset.id);
+        loadQueue();
+      });
+    });
+  }
+
+  async function submitToQueue() {
+    const ticker = Utils.normalizeTicker(document.getElementById('queue-ticker-input').value);
+    const notes = document.getElementById('queue-notes-input').value.trim();
+    if (!ticker) return;
+
+    const btn = document.getElementById('queue-submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Adding…';
+
+    const { error } = await SM.supabase.from('ticker_queue').insert({
+      ticker,
+      notes: notes || null,
+      submitted_by: SM.user.id,
+      status: 'pending',
+    });
+
+    btn.disabled = false;
+    btn.textContent = 'Add to Queue';
+
+    if (!error) {
+      document.getElementById('queue-ticker-input').value = '';
+      document.getElementById('queue-notes-input').value = '';
+      loadQueue();
+    }
+  }
+
+  // ================================================================
+  // Auto-processor — runs on page load, uses spare daily API budget
+  // ================================================================
+
+  let _processing = false;
+
+  async function autoProcess() {
+    if (_processing) return;
+    _processing = true;
+
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const { data: usageRows } = await SM.supabase
+        .from('api_usage_log')
+        .select('calls_consumed')
+        .gte('called_at', `${today}T00:00:00Z`);
+
+      const callsUsed = (usageRows || []).reduce((sum, r) => sum + r.calls_consumed, 0);
+      const canProcess = Math.floor((25 - callsUsed) / 3);
+      if (canProcess <= 0) return;
+
+      const { data: pending } = await SM.supabase
+        .from('ticker_queue')
+        .select('*')
+        .eq('status', 'pending')
+        .order('submitted_at', { ascending: true })
+        .limit(canProcess);
+
+      if (!pending || pending.length === 0) return;
+
+      const toast = document.getElementById('queue-process-toast');
+      const toastMsg = document.getElementById('queue-process-msg');
+      toast.style.display = 'flex';
+
+      for (const item of pending) {
+        toastMsg.textContent = `Processing $${item.ticker}…`;
+
+        try {
+          await SM.supabase.from('ticker_queue').update({ status: 'processing' }).eq('id', item.id);
+
+          // Stock data (2 AV calls)
+          let stockData = null;
+          try {
+            stockData = await Utils.apiFetch(`/api/stock-data?ticker=${item.ticker}`);
+            await SM.supabase.from('api_usage_log').insert({ ticker: item.ticker, calls_consumed: 2 });
+          } catch { /* optional */ }
+
+          // SEC EDGAR (free)
+          let edgarData = null;
+          try { edgarData = await Utils.apiFetch(`/api/sec-edgar?ticker=${item.ticker}`); } catch { /* optional */ }
+
+          // News (1 AV call)
+          let newsData = null;
+          try {
+            newsData = await Utils.apiFetch(`/api/news-fetch?ticker=${item.ticker}`);
+            await SM.supabase.from('api_usage_log').insert({ ticker: item.ticker, calls_consumed: 1 });
+          } catch { /* optional */ }
+
+          const companyName = edgarData?.company || stockData?.name || item.ticker;
+
+          // AI analysis (free — Anthropic)
+          let aiAnalysis = null;
+          try {
+            const r = await Utils.apiFetch('/api/anthropic-analysis', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ticker: item.ticker, company: companyName, quarters: edgarData?.quarters, metrics: edgarData?.metrics, stockData }),
+            });
+            aiAnalysis = r.analysis;
+          } catch { /* optional */ }
+
+          // Save snapshot
+          await SM.supabase.from('ticker_snapshots').upsert({
+            ticker: item.ticker, company_name: companyName,
+            stock_data: stockData, financial_data: edgarData,
+            ai_analysis: aiAnalysis, news_data: newsData,
+            snapped_at: new Date().toISOString(), snapped_by: SM.user.id,
+          }, { onConflict: 'ticker' });
+
+          // Log to shared research history
+          try {
+            await SM.supabase.from('research_history').insert({
+              user_id: SM.user.id, ticker: item.ticker, company_name: companyName,
+              metrics_snapshot: stockData ? { price: stockData.price, marketCap: stockData.marketCap, pe: stockData.pe, changePercent: stockData.changePercent } : null,
+            });
+          } catch { /* non-critical */ }
+
+          await SM.supabase.from('ticker_queue').update({ status: 'done', processed_at: new Date().toISOString(), error_msg: null }).eq('id', item.id);
+
+        } catch (err) {
+          await SM.supabase.from('ticker_queue').update({ status: 'failed', error_msg: err.message?.slice(0, 200) }).eq('id', item.id);
+        }
+      }
+
+      toast.style.display = 'none';
+      await Promise.all([loadApiUsage(), loadQueue(), loadHistory()]);
+
+    } finally {
+      _processing = false;
+    }
   }
 
 })();
