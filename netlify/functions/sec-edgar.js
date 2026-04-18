@@ -135,11 +135,24 @@ function extractQuarterlyValues(gaap, conceptNames) {
 
     if (quarterly.length === 0) continue;
 
-    // Deduplicate by period end date — keep the most-recently-filed value
+    // Deduplicate by period end date — prefer entry whose period length is closest
+    // to 91 days (a true quarter). Cumulative YTD filings (H1, 9M) sharing the
+    // same end date would otherwise inflate Q2/Q3 figures.
     const periodMap = new Map();
     for (const e of quarterly) {
+      const days = e.start && e.end
+        ? (new Date(e.end) - new Date(e.start)) / 86400000
+        : 91; // fp-only entries assumed to be true quarters
+      const dist = Math.abs(days - 91);
       const existing = periodMap.get(e.end);
-      if (!existing || e.filed > existing.filed) periodMap.set(e.end, e);
+      if (!existing) {
+        periodMap.set(e.end, { ...e, _dist: dist });
+      } else {
+        // prefer closer to 91 days; break ties by most-recently-filed
+        if (dist < existing._dist || (dist === existing._dist && e.filed > existing.filed)) {
+          periodMap.set(e.end, { ...e, _dist: dist });
+        }
+      }
     }
 
     return [...periodMap.values()]

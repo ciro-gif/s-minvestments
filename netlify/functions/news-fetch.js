@@ -51,7 +51,22 @@ exports.handler = async (event) => {
     }
 
     const feed = data.feed || [];
-    const articles = feed.slice(0, 10).map(item => ({
+    const upperTicker = ticker.toUpperCase();
+
+    // Keep only articles where the searched ticker has relevance_score >= 0.3
+    // Alpha Vantage returns articles that merely mention the ticker; this filters
+    // for articles actually focused on it.
+    const relevant = feed.filter(item => {
+      const ts = (item.ticker_sentiment || []).find(
+        t => t.ticker === upperTicker
+      );
+      return ts && parseFloat(ts.relevance_score) >= 0.3;
+    });
+
+    // Fall back to top articles if nothing passes the threshold (avoids empty feed)
+    const source = relevant.length >= 3 ? relevant : feed;
+
+    const articles = source.slice(0, 10).map(item => ({
       title: item.title,
       description: item.summary?.slice(0, 200),
       source: item.source,

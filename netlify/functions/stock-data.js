@@ -31,9 +31,12 @@ exports.handler = async (event) => {
 
     const [ov, qData] = await Promise.all([ovRes.json(), qRes.json()]);
 
-    // Alpha Vantage returns empty object or error message on invalid ticker
+    // Alpha Vantage rate-limit returns { Information: "..." } or { Note: "..." }
+    if (ov.Information || ov.Note) {
+      throw new Error('Alpha Vantage daily rate limit reached (25 calls/day). Market data will be available tomorrow.');
+    }
     if (!ov.Symbol && !ov.Name) {
-      throw new Error(ov.Note || ov.Information || `No data found for ${ticker}`);
+      throw new Error(`No market data found for ${ticker}. The ticker may be invalid or delisted.`);
     }
 
     const quote = qData['Global Quote'] || {};
