@@ -515,6 +515,7 @@
           <tr>
             <th>Metric</th>
             ${thCells}
+            <th class="trend-col" title="Overall trend across all quarters">Trend</th>
           </tr>
         </thead>
         <tbody>
@@ -526,7 +527,7 @@
 
       tableHTML += `
         <tr class="section-header">
-          <td colspan="${quarters.length + 1}">${section.label}</td>
+          <td colspan="${quarters.length + 2}">${section.label}</td>
         </tr>
       `;
 
@@ -544,6 +545,7 @@
           <tr class="${rowCls}">
             <td>${Utils.escHtml(row.label)}${tipHtml(row.label, FIN_TIPS)}</td>
             ${cells}
+            ${trendCell(row.vals, row)}
           </tr>
         `;
       }
@@ -551,6 +553,40 @@
 
     tableHTML += `</tbody></table>`;
     el.innerHTML = tableHTML;
+  }
+
+  function trendCell(vals, row) {
+    const clean = (vals || []).filter(v => v !== null && !isNaN(v));
+    if (clean.length < 2) return '<td class="trend-col"></td>';
+
+    const first = clean[0];
+    const last  = clean[clean.length - 1];
+    const isUp  = last > first;
+    const color = isUp ? 'var(--green)' : 'var(--red)';
+    const arrow = isUp ? '▲' : '▼';
+
+    let label;
+    if (row.pct) {
+      const pp = ((last - first) * 100).toFixed(1);
+      label = `${isUp ? '+' : ''}${pp}pp`;
+    } else if (row.eps || row.shares) {
+      const pct = first !== 0 ? ((last - first) / Math.abs(first) * 100).toFixed(0) : '—';
+      label = `${isUp ? '+' : ''}${pct}%`;
+    } else {
+      const pct = first !== 0 ? ((last - first) / Math.abs(first) * 100).toFixed(0) : '—';
+      label = `${isUp ? '+' : ''}${pct}%`;
+    }
+
+    const svg = Utils.sparkline(clean, { color: isUp ? '#00C48C' : '#FF4D4D', width: 64, height: 22, fill: true });
+
+    return `
+      <td class="trend-col">
+        <div class="trend-cell-inner">
+          ${svg}
+          <span style="color:${color}">${arrow} ${label}</span>
+        </div>
+      </td>
+    `;
   }
 
   function renderCell(val, row) {

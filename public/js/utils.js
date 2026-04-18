@@ -212,3 +212,36 @@ const Utils = {
       .replace(/"/g, '&quot;');
   },
 };
+
+// ---- Global floating tooltip (fixed-position, never clipped by overflow) ----
+;(() => {
+  let el = null;
+  function box() {
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'global-tip';
+      document.body.appendChild(el);
+    }
+    return el;
+  }
+  document.addEventListener('mouseover', e => {
+    const tip = e.target.closest('.info-tip');
+    if (!tip || !tip.dataset.tip) return;
+    const b = box();
+    b.textContent = tip.dataset.tip;
+    b.style.opacity = '0';
+    b.style.display = 'block';
+    const tw = b.offsetWidth, th = b.offsetHeight;
+    const r = tip.getBoundingClientRect();
+    let top = r.top - th - 8;
+    let left = r.left + r.width / 2 - tw / 2;
+    if (top < 8) top = r.bottom + 8;
+    left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
+    b.style.top = top + 'px';
+    b.style.left = left + 'px';
+    b.style.opacity = '1';
+  });
+  document.addEventListener('mouseout', e => {
+    if (e.target.closest('.info-tip') && el) el.style.opacity = '0';
+  });
+})();

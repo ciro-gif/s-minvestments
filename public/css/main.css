@@ -152,21 +152,22 @@ code, .mono { font-family: var(--font-mono); }
 .btn-logout:hover { color: var(--text); border-color: var(--text-muted); }
 
 .lang-toggle {
-  background: none;
-  border: 1px solid var(--border2);
-  color: var(--text-dim);
-  padding: 3px 8px;
+  background: rgba(0,196,140,0.08);
+  border: 1px solid var(--green);
+  color: var(--green);
+  padding: 4px 10px;
   border-radius: var(--radius);
   cursor: pointer;
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.06em;
-  transition: color 0.15s, border-color 0.15s;
+  transition: background 0.15s;
+  flex-shrink: 0;
 }
-.lang-toggle:hover { color: var(--green); border-color: var(--green); }
+.lang-toggle:hover { background: rgba(0,196,140,0.18); }
 
-/* ---- Info tooltips ---- */
+/* ---- Info tooltips (visual badge only — JS handles positioning) ---- */
 .info-tip {
   display: inline-flex;
   align-items: center;
@@ -183,38 +184,34 @@ code, .mono { font-family: var(--font-mono); }
   font-family: var(--font-mono);
   cursor: help;
   margin-left: 4px;
-  position: relative;
   vertical-align: middle;
   flex-shrink: 0;
   transition: color 0.15s, border-color 0.15s;
 }
 .info-tip:hover { color: var(--blue); border-color: var(--blue); }
 
-.info-tip::after {
-  content: attr(data-tip);
-  position: absolute;
-  bottom: calc(100% + 7px);
-  left: 50%;
-  transform: translateX(-50%);
+/* Global floating tooltip — appended to <body> by utils.js, never clipped */
+#global-tip {
+  position: fixed;
+  z-index: 9999;
+  max-width: 240px;
+  padding: 9px 11px;
   background: var(--surface3);
   border: 1px solid var(--border2);
+  border-radius: var(--radius);
   color: var(--text);
   font-size: 0.72rem;
   line-height: 1.55;
-  padding: 9px 11px;
-  border-radius: var(--radius);
-  width: 230px;
-  white-space: normal;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.15s;
-  z-index: 300;
+  transition: opacity 0.12s;
   font-family: var(--font-sans);
   font-weight: 400;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.55);
+  white-space: normal;
+  display: none;
   text-align: left;
 }
-.info-tip:hover::after { opacity: 1; }
 
 /* ---- Main layout ---- */
 .page-body { padding-top: var(--nav-h); min-height: 100vh; }
@@ -452,6 +449,8 @@ code, .mono { font-family: var(--font-mono); }
 @media (max-width: 768px) {
   .nav-links { display: none; }
   .nav-mobile-menu { display: flex; }
+  .nav-username { display: none; }
+  .nav-avatar { display: none; }
   .container { padding: 0 12px; }
 
   .mobile-nav {

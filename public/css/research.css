@@ -494,6 +494,33 @@
   background: var(--border);
 }
 
+/* ---- Trend column ---- */
+.fin-table thead th.trend-col {
+  text-align: center;
+  min-width: 90px;
+  background: var(--surface2);
+  border-left: 1px solid var(--border);
+}
+
+.fin-table tbody td.trend-col {
+  text-align: center;
+  padding: 4px 8px;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.fin-table tbody tr:hover td.trend-col { background: var(--surface3); }
+
+.trend-cell-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
 /* ---- Responsive ---- */
 @media (max-width: 768px) {
   .snapshot-grid { grid-template-columns: repeat(2, 1fr); }
