@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S&amp;M Investments — Forum</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/forum.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/dashboard.html" class="nav-brand"><span>S&amp;M</span> Investments</a>
+    <div class="nav-links">
+      <a href="/dashboard.html" class="nav-link">Dashboard</a>
+      <a href="/research.html" class="nav-link">Research</a>
+      <a href="/forum.html" class="nav-link active">Forum</a>
+      <a href="/profile.html" class="nav-link">Profile</a>
+    </div>
+    <div class="nav-user">
+      <div class="nav-avatar" id="nav-avatar"></div>
+      <span class="nav-username" id="nav-username"></span>
+      <button class="btn-logout" id="logout-btn">Logout</button>
+    </div>
+  </nav>
+
+  <nav class="mobile-nav">
+    <a href="/dashboard.html" class="mobile-nav-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Dash
+    </a>
+    <a href="/research.html" class="mobile-nav-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Research
+    </a>
+    <a href="/forum.html" class="mobile-nav-link active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Forum
+    </a>
+    <a href="/profile.html" class="mobile-nav-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Profile
+    </a>
+  </nav>
+
+  <div class="page-body">
+    <div class="container">
+      <div class="forum-layout">
+        <!-- Main column -->
+        <div>
+          <!-- Post composer -->
+          <div class="post-composer">
+            <div class="composer-header">
+              <h3>New Post</h3>
+            </div>
+            <div class="composer-type-tabs">
+              <button class="type-tab active" data-type="Analysis Share">Analysis Share</button>
+              <button class="type-tab" data-type="Watchlist Add">Watchlist Add</button>
+              <button class="type-tab" data-type="General Discussion">General Discussion</button>
+            </div>
+            <div class="composer-body">
+              <textarea class="textarea" id="post-content" placeholder="Share your analysis, watchlist pick, or discussion…" rows="3"></textarea>
+              <div class="composer-extras">
+                <input class="input" id="post-ticker" type="text" placeholder="$TICKER (optional)" maxlength="10" style="max-width:150px; text-transform:uppercase; font-family:var(--font-mono)">
+                <label class="img-upload-btn">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                  Image
+                  <input type="file" id="img-upload-input" accept="image/*">
+                </label>
+              </div>
+              <div id="img-preview-wrap" style="display:none">
+                <img id="img-preview" class="img-preview" alt="Preview">
+                <button id="img-remove" class="btn btn-ghost btn-sm" style="margin-top:4px">Remove</button>
+              </div>
+            </div>
+            <div class="composer-footer">
+              <span id="composer-error" class="form-error" style="margin-right:auto"></span>
+              <button class="btn btn-primary" id="post-submit">Post</button>
+            </div>
+          </div>
+
+          <!-- Filters -->
+          <div class="posts-filters">
+            <button class="filter-btn active" data-filter="all">All Posts</button>
+            <button class="filter-btn" data-filter="Analysis Share">Analysis</button>
+            <button class="filter-btn" data-filter="Watchlist Add">Watchlist</button>
+            <button class="filter-btn" data-filter="General Discussion">Discussion</button>
+          </div>
+
+          <!-- Posts -->
+          <div id="posts-list">
+            <div class="loading-block"><div class="spinner"></div> Loading posts…</div>
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="forum-sidebar">
+          <div class="sidebar-card">
+            <h4>Members</h4>
+            <div id="sidebar-members" class="sidebar-members">
+              <div class="loading-block" style="padding:12px 0"><div class="spinner"></div></div>
+            </div>
+          </div>
+
+          <div class="sidebar-card">
+            <h4>Recent Tickers</h4>
+            <div id="sidebar-tickers" class="sidebar-ticker-list">
+              <div class="loading-block" style="padding:12px 0"><div class="spinner"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/forum.js"></script>
+</body>
+</html>

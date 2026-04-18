@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S&amp;M Investments — Research</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/research.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/dashboard.html" class="nav-brand"><span>S&amp;M</span> Investments</a>
+    <div class="nav-links">
+      <a href="/dashboard.html" class="nav-link">Dashboard</a>
+      <a href="/research.html" class="nav-link active">Research</a>
+      <a href="/forum.html" class="nav-link">Forum</a>
+      <a href="/profile.html" class="nav-link">Profile</a>
+    </div>
+    <div class="nav-user">
+      <div class="nav-avatar" id="nav-avatar"></div>
+      <span class="nav-username" id="nav-username"></span>
+      <button class="btn-logout" id="logout-btn">Logout</button>
+    </div>
+  </nav>
+
+  <nav class="mobile-nav">
+    <a href="/dashboard.html" class="mobile-nav-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Dash
+    </a>
+    <a href="/research.html" class="mobile-nav-link active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Research
+    </a>
+    <a href="/forum.html" class="mobile-nav-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Forum
+    </a>
+    <a href="/profile.html" class="mobile-nav-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Profile
+    </a>
+  </nav>
+
+  <div class="page-body">
+    <div class="container">
+      <!-- Search bar (always visible) -->
+      <div style="padding: 16px 0 0;">
+        <div class="search-bar" id="research-search" style="max-width:400px">
+          <span class="ticker-prefix">$</span>
+          <input type="text" id="ticker-input" placeholder="Search ticker…" maxlength="10" autocomplete="off">
+          <button id="search-btn">Go</button>
+        </div>
+      </div>
+
+      <!-- Content area — shown after search -->
+      <div id="research-empty" style="padding:60px 0; text-align:center; color:var(--text-muted)">
+        <p style="font-size:0.9rem; margin-bottom:8px">Enter a ticker symbol to begin research.</p>
+        <p style="font-size:0.78rem; color:var(--text-dim)">Data sourced from SEC EDGAR, Alpha Vantage, and NewsAPI.</p>
+      </div>
+
+      <div id="research-content" style="display:none; padding-bottom:40px">
+        <!-- Header -->
+        <div class="research-header">
+          <div>
+            <div class="research-ticker-badge" id="r-ticker"></div>
+            <div class="research-company-name" id="r-company"></div>
+          </div>
+          <div class="research-actions">
+            <button class="btn btn-ghost btn-sm" id="note-btn">+ Private Note</button>
+            <button class="btn btn-ghost btn-sm" id="forum-btn">Share to Forum</button>
+          </div>
+        </div>
+
+        <!-- 1. Snapshot Card -->
+        <div id="snapshot-section">
+          <div class="section-divider"><h2>Company Snapshot</h2></div>
+          <div id="snapshot-card" class="snapshot-card">
+            <div class="loading-block"><div class="spinner"></div> Loading market data…</div>
+          </div>
+        </div>
+
+        <!-- 2. Financial Table -->
+        <div id="fin-table-section" class="fin-table-section">
+          <div class="section-divider"><h2>Quarterly Financial Model</h2></div>
+          <div id="fin-table-wrap" class="fin-table-wrap">
+            <div class="loading-block"><div class="spinner"></div> Fetching SEC EDGAR data…</div>
+          </div>
+        </div>
+
+        <!-- 3. AI Analysis -->
+        <div class="section-divider"><h2>AI Analyst Notes</h2></div>
+        <div class="ai-panel" id="ai-panel">
+          <div class="ai-panel-header" id="ai-panel-toggle">
+            <div class="title">
+              <span class="ai-label">AI</span>
+              <span>Analyst Notes — <span id="ai-ticker-label"></span></span>
+            </div>
+            <svg class="ai-panel-chevron" id="ai-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="ai-panel-body" id="ai-panel-body">
+            <div class="loading-block"><div class="spinner"></div> Generating AI analysis…</div>
+          </div>
+        </div>
+
+        <!-- 4. Metrics Cards -->
+        <div class="section-divider"><h2>Key Metrics</h2></div>
+        <div id="metrics-cards" class="metrics-cards">
+          <div class="loading-block"><div class="spinner"></div></div>
+        </div>
+
+        <!-- 5. News Feed -->
+        <div class="section-divider"><h2>Recent News</h2></div>
+        <div id="news-section" class="news-section">
+          <div id="news-list" class="news-list">
+            <div class="loading-block"><div class="spinner"></div> Fetching news…</div>
+          </div>
+        </div>
+
+        <!-- 6. Private Notes for this ticker -->
+        <div class="section-divider"><h2>My Notes</h2></div>
+        <div id="notes-section" class="research-notes-section">
+          <div id="notes-list"></div>
+        </div>
+
+        <!-- Add note form (hidden by default) -->
+        <div id="note-form" style="display:none; margin-top:10px">
+          <div class="card">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:0.75rem;color:var(--amber)">
+              🔒 <strong>Private Note</strong> — only you can see this
+            </div>
+            <textarea class="textarea" id="note-content" placeholder="Write your private analysis note…" rows="4"></textarea>
+            <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
+              <button class="btn btn-ghost btn-sm" id="note-cancel">Cancel</button>
+              <button class="btn btn-primary btn-sm" id="note-save">Save Note</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Share to Forum (hidden by default) -->
+        <div id="forum-form" style="display:none; margin-top:10px">
+          <div class="card">
+            <h3 style="margin-bottom:12px">Share to Forum</h3>
+            <div style="display:flex;gap:6px;margin-bottom:10px">
+              <button class="btn btn-ghost btn-sm type-select active" data-type="Analysis Share">Analysis Share</button>
+              <button class="btn btn-ghost btn-sm type-select" data-type="Watchlist Add">Watchlist Add</button>
+            </div>
+            <textarea class="textarea" id="forum-content" placeholder="Share your thoughts on this ticker…" rows="3"></textarea>
+            <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
+              <button class="btn btn-ghost btn-sm" id="forum-cancel">Cancel</button>
+              <button class="btn btn-primary btn-sm" id="forum-save">Post</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/research.js"></script>
+</body>
+</html>

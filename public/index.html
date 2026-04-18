@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S&amp;M Investments — Login</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+  <div class="login-page">
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="logo">S&amp;M</div>
+        <div class="tagline">Investments — Member Portal</div>
+      </div>
+
+      <form class="login-form" id="login-form" autocomplete="on">
+        <div class="form-group">
+          <label class="form-label" for="email">Email</label>
+          <input class="input" type="email" id="email" name="email" placeholder="member@example.com" required autocomplete="username">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <input class="input" type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+
+        <div id="login-error" class="alert alert-error" style="display:none"></div>
+
+        <button type="submit" class="btn btn-primary" id="login-btn">
+          Sign In
+        </button>
+      </form>
+
+      <p style="text-align:center; margin-top:20px; font-size:0.72rem; color:var(--text-dim);">
+        Invite-only. Contact a member to join.
+      </p>
+    </div>
+  </div>
+
+  <script src="/js/config.js"></script>
+  <script>
+    // Redirect if already logged in
+    SM.supabase.auth.getSession().then(({ data }) => {
+      if (data.session) window.location.href = '/dashboard.html';
+    });
+
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('login-btn');
+      const errEl = document.getElementById('login-error');
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      btn.disabled = true;
+      btn.textContent = 'Signing in…';
+      errEl.style.display = 'none';
+
+      const { error } = await SM.supabase.auth.signInWithPassword({ email, password });
+
+      if (error) {
+        errEl.textContent = error.message;
+        errEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Sign In';
+      } else {
+        window.location.href = '/dashboard.html';
+      }
+    });
+  </script>
+</body>
+</html>

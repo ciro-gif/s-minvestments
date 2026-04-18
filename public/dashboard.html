@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S&amp;M Investments — Dashboard</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .dash-layout {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 20px;
+      padding: 24px 0 40px;
+    }
+    @media (max-width: 900px) { .dash-layout { grid-template-columns: 1fr; } }
+
+    .dash-hero {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px 24px;
+      margin-bottom: 20px;
+      text-align: center;
+      background-image: radial-gradient(ellipse at 50% -30%, rgba(0,196,140,0.06), transparent 60%);
+    }
+    .dash-hero h1 { margin-bottom: 6px; }
+    .dash-hero p { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px; }
+
+    .dash-search { max-width: 480px; margin: 0 auto; }
+
+    .history-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 8px;
+    }
+
+    .history-chip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .history-chip:hover { border-color: var(--green); background: var(--surface2); }
+    .history-chip .h-ticker {
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--green);
+      margin-bottom: 3px;
+    }
+    .history-chip .h-company {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 4px;
+    }
+    .history-chip .h-meta {
+      font-size: 0.62rem;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+
+    .recent-posts { display: flex; flex-direction: column; gap: 8px; }
+
+    .mini-post {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .mini-post:hover { border-color: var(--border2); }
+    .mini-post .mp-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 5px;
+    }
+    .mini-post .mp-preview {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .member-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .member-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .member-row .info { flex: 1; }
+    .member-row .name { font-size: 0.82rem; font-weight: 600; }
+    .member-row .bio { font-size: 0.72rem; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/dashboard.html" class="nav-brand"><span>S&amp;M</span> Investments</a>
+    <div class="nav-links">
+      <a href="/dashboard.html" class="nav-link active">Dashboard</a>
+      <a href="/research.html" class="nav-link">Research</a>
+      <a href="/forum.html" class="nav-link">Forum</a>
+      <a href="/profile.html" class="nav-link">Profile</a>
+    </div>
+    <div class="nav-user">
+      <div class="nav-avatar" id="nav-avatar"></div>
+      <span class="nav-username" id="nav-username"></span>
+      <button class="btn-logout" id="logout-btn">Logout</button>
+    </div>
+  </nav>
+
+  <!-- Mobile nav -->
+  <nav class="mobile-nav">
+    <a href="/dashboard.html" class="mobile-nav-link active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Dash
+    </a>
+    <a href="/research.html" class="mobile-nav-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Research
+    </a>
+    <a href="/forum.html" class="mobile-nav-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Forum
+    </a>
+    <a href="/profile.html" class="mobile-nav-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Profile
+    </a>
+  </nav>
+
+  <div class="page-body">
+    <div class="container">
+      <!-- Hero Search -->
+      <div class="dash-hero">
+        <h1>Member Research Portal</h1>
+        <p>Search any ticker to pull financials, AI analysis, and news.</p>
+        <div class="dash-search">
+          <div class="search-bar" id="dash-search">
+            <span class="ticker-prefix">$</span>
+            <input type="text" id="ticker-input" placeholder="Enter ticker symbol…" maxlength="10" autocomplete="off">
+            <button id="search-btn">Research</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="dash-layout">
+        <!-- Main column -->
+        <div>
+          <div class="card" style="margin-bottom:20px">
+            <div class="card-header">
+              <h3>Recently Researched</h3>
+              <span style="font-size:0.72rem;color:var(--text-muted)" id="history-count"></span>
+            </div>
+            <div id="history-grid" class="history-grid">
+              <div class="loading-block"><div class="spinner"></div></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3>Recent Forum Activity</h3>
+              <a href="/forum.html" style="font-size:0.78rem;color:var(--blue)">View all →</a>
+            </div>
+            <div id="recent-posts" class="recent-posts">
+              <div class="loading-block"><div class="spinner"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div>
+          <div class="card" style="margin-bottom:14px">
+            <h4 style="margin-bottom:12px">Members</h4>
+            <div id="members-list" class="member-grid">
+              <div class="loading-block"><div class="spinner"></div></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h4 style="margin-bottom:12px">Top Tickers This Month</h4>
+            <div id="top-tickers">
+              <div class="loading-block"><div class="spinner"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>

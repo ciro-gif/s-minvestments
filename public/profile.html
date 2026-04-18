@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S&amp;M Investments — Profile</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .profile-layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 24px;
+      padding: 24px 0 40px;
+    }
+    @media (max-width: 768px) { .profile-layout { grid-template-columns: 1fr; } }
+
+    .profile-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      text-align: center;
+      height: fit-content;
+      position: sticky;
+      top: calc(var(--nav-h) + 16px);
+    }
+
+    .profile-avatar-big {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 1.4rem;
+      margin: 0 auto 14px;
+    }
+
+    .profile-name-display {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .profile-bio-display {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 16px;
+      min-height: 20px;
+    }
+
+    .profile-stats {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    .profile-stat .num {
+      font-family: var(--font-mono);
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--green);
+    }
+
+    .profile-stat .label {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .profile-edit-form { display: flex; flex-direction: column; gap: 14px; }
+
+    .history-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .history-table th {
+      text-align: left;
+      color: var(--text-muted);
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .history-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+    .history-table tr:last-child td { border-bottom: none; }
+    .history-table tr:hover td { background: var(--surface2); }
+    .history-ticker {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--green);
+      cursor: pointer;
+    }
+    .history-ticker:hover { text-decoration: underline; }
+
+    .note-edit-wrap { position: relative; }
+    .note-edit-actions { display: flex; gap: 6px; margin-top: 6px; justify-content: flex-end; }
+
+    .notes-grid { display: flex; flex-direction: column; gap: 10px; }
+
+    .note-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+    }
+
+    .note-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .note-card-ticker {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--green);
+      font-size: 0.82rem;
+    }
+
+    .note-card-date {
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+
+    .note-card-content {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .note-card-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    .tab-bar {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+
+    .tab-btn {
+      padding: 8px 16px;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: var(--font-sans);
+      transition: color 0.15s;
+    }
+
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--green); border-bottom-color: var(--green); }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/dashboard.html" class="nav-brand"><span>S&amp;M</span> Investments</a>
+    <div class="nav-links">
+      <a href="/dashboard.html" class="nav-link">Dashboard</a>
+      <a href="/research.html" class="nav-link">Research</a>
+      <a href="/forum.html" class="nav-link">Forum</a>
+      <a href="/profile.html" class="nav-link active">Profile</a>
+    </div>
+    <div class="nav-user">
+      <div class="nav-avatar" id="nav-avatar"></div>
+      <span class="nav-username" id="nav-username"></span>
+      <button class="btn-logout" id="logout-btn">Logout</button>
+    </div>
+  </nav>
+
+  <nav class="mobile-nav">
+    <a href="/dashboard.html" class="mobile-nav-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Dash
+    </a>
+    <a href="/research.html" class="mobile-nav-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Research
+    </a>
+    <a href="/forum.html" class="mobile-nav-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Forum
+    </a>
+    <a href="/profile.html" class="mobile-nav-link active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Profile
+    </a>
+  </nav>
+
+  <div class="page-body">
+    <div class="container">
+      <div class="profile-layout">
+        <!-- Left: profile card -->
+        <div>
+          <div class="profile-card">
+            <div class="profile-avatar-big" id="profile-avatar-big"></div>
+            <div class="profile-name-display" id="profile-name-display">Loading…</div>
+            <div class="profile-bio-display" id="profile-bio-display"></div>
+            <div class="profile-stats">
+              <div class="profile-stat">
+                <div class="num" id="stat-researched">—</div>
+                <div class="label">Tickers</div>
+              </div>
+              <div class="profile-stat">
+                <div class="num" id="stat-posts">—</div>
+                <div class="label">Posts</div>
+              </div>
+              <div class="profile-stat">
+                <div class="num" id="stat-notes">—</div>
+                <div class="label">Notes</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: tabs -->
+        <div>
+          <div class="tab-bar">
+            <button class="tab-btn active" data-tab="edit">Edit Profile</button>
+            <button class="tab-btn" data-tab="history">Research History</button>
+            <button class="tab-btn" data-tab="notes">Private Notes</button>
+          </div>
+
+          <!-- Edit Profile -->
+          <div class="tab-panel active" id="tab-edit">
+            <div class="card" style="max-width:480px">
+              <h3 style="margin-bottom:16px">Profile Settings</h3>
+              <form id="profile-form" class="profile-edit-form">
+                <div class="form-group">
+                  <label class="form-label">Display Name</label>
+                  <input class="input" type="text" id="edit-name" maxlength="40" placeholder="Your name">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Bio</label>
+                  <textarea class="textarea" id="edit-bio" maxlength="200" placeholder="Short bio (optional)" rows="3"></textarea>
+                </div>
+                <div id="profile-msg"></div>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+              </form>
+            </div>
+          </div>
+
+          <!-- Research History -->
+          <div class="tab-panel" id="tab-history">
+            <div class="card">
+              <div class="card-header" style="margin-bottom:12px">
+                <h3>Your Research History</h3>
+                <span id="history-count" style="font-size:0.75rem;color:var(--text-muted)"></span>
+              </div>
+              <div id="history-content">
+                <div class="loading-block"><div class="spinner"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Private Notes -->
+          <div class="tab-panel" id="tab-notes">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+              <h3>Private Notes</h3>
+              <button class="btn btn-primary btn-sm" id="new-note-btn">+ New Note</button>
+            </div>
+
+            <div id="new-note-form" style="display:none;margin-bottom:14px">
+              <div class="card">
+                <div style="display:flex;align-items:center;gap:6px;font-size:0.75rem;color:var(--amber);margin-bottom:10px">
+                  🔒 <strong>Private — only you can see this</strong>
+                </div>
+                <div style="display:flex;gap:8px;margin-bottom:10px">
+                  <input class="input" id="new-note-ticker" placeholder="$TICKER (optional)" style="max-width:150px;font-family:var(--font-mono);text-transform:uppercase">
+                </div>
+                <textarea class="textarea" id="new-note-content" placeholder="Your private note…" rows="4"></textarea>
+                <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
+                  <button class="btn btn-ghost btn-sm" id="note-cancel">Cancel</button>
+                  <button class="btn btn-primary btn-sm" id="note-save">Save</button>
+                </div>
+              </div>
+            </div>
+
+            <div id="notes-grid" class="notes-grid">
+              <div class="loading-block"><div class="spinner"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/profile.js"></script>
+</body>
+</html>
