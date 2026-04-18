@@ -289,10 +289,13 @@
     }
 
     const changeVal = parseFloat(d.change) || 0;
-    const changeSign = changeVal >= 0 ? '+' : '';
-    const changeCls = changeVal >= 0 ? 'pos' : 'neg';
+    const changeSign = changeVal > 0 ? '+' : '';
+    const changeCls = changeVal > 0 ? 'pos' : changeVal < 0 ? 'neg' : 'zero';
     const price = d.price ? `$${parseFloat(d.price).toFixed(2)}` : '—';
     const mktCap = d.marketCap ? Utils.fmtMoney(Number(d.marketCap)) : '—';
+    const changeDisplay = (Math.abs(changeVal) < 0.005 && !d.changePercent)
+      ? '<span style="color:var(--text-dim);font-size:0.8rem">Market closed</span>'
+      : `${changeSign}${changeVal.toFixed(2)} (${d.changePercent || '—'})`;
 
     const grid = [
       ['Market Cap',     mktCap],
@@ -321,9 +324,7 @@
       </div>
       <div class="snapshot-price-row">
         <div class="snapshot-price">${price}</div>
-        <div class="snapshot-change ${changeCls}">
-          ${changeSign}${changeVal.toFixed(2)} (${d.changePercent || '—'})
-        </div>
+        <div class="snapshot-change ${changeCls}">${changeDisplay}</div>
       </div>
       <div class="snapshot-grid">
         ${grid.map(([label, val]) => `

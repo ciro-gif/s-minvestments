@@ -32,7 +32,18 @@ async function fetchYahoo(ticker) {
   const k = result.defaultKeyStatistics || {};
   const a = result.assetProfile || {};
 
-  const pct = p.regularMarketChangePercent?.raw;
+  const rawChange = p.regularMarketChange?.raw ?? 0;
+  const rawPct = p.regularMarketChangePercent?.raw;
+  const rawPrice = p.regularMarketPrice?.raw;
+
+  // Compute percent if Yahoo didn't return it but we have price + change
+  let changePercent = null;
+  if (rawPct != null) {
+    changePercent = `${(rawPct * 100).toFixed(2)}%`;
+  } else if (rawPrice && rawChange) {
+    const base = rawPrice - rawChange;
+    if (base !== 0) changePercent = `${((rawChange / base) * 100).toFixed(2)}%`;
+  }
 
   return {
     symbol: ticker.toUpperCase(),
@@ -53,13 +64,13 @@ async function fetchYahoo(ticker) {
     nextEarnings: null,
     analystTarget: k.targetMeanPrice?.raw,
     avgVolume: d.averageVolume?.raw,
-    price: p.regularMarketPrice?.raw,
+    price: rawPrice,
     open: p.regularMarketOpen?.raw,
     high: p.regularMarketDayHigh?.raw,
     low: p.regularMarketDayLow?.raw,
     volume: p.regularMarketVolume?.raw,
-    change: p.regularMarketChange?.raw,
-    changePercent: pct != null ? `${(pct * 100).toFixed(2)}%` : null,
+    change: rawChange,
+    changePercent,
     source: 'yahoo',
   };
 }
