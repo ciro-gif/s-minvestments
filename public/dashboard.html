@@ -217,12 +217,12 @@
     <div class="container">
       <!-- Hero Search -->
       <div class="dash-hero">
-        <h1>Member Research Portal</h1>
-        <p>Search any ticker to pull financials, AI analysis, and news.</p>
+        <h1 data-i18n="dashboard.hero">Member Research Portal</h1>
+        <p data-i18n="dashboard.search_hint">Search any ticker to begin your analysis</p>
         <div class="dash-search">
           <div class="search-bar" id="dash-search">
             <span class="ticker-prefix">$</span>
-            <input type="text" id="ticker-input" placeholder="Enter ticker symbol…" maxlength="10" autocomplete="off">
+            <input type="text" id="ticker-input" placeholder="Enter ticker symbol…" maxlength="10" autocomplete="off" autofocus>
             <button id="search-btn">Research</button>
           </div>
         </div>
@@ -233,7 +233,7 @@
         <div>
           <div class="card" style="margin-bottom:20px">
             <div class="card-header">
-              <h3>Recently Researched</h3>
+              <h3 data-i18n="dashboard.recently_researched">Recently Researched</h3>
               <span style="font-size:0.72rem;color:var(--text-muted)" id="history-count"></span>
             </div>
             <div id="history-grid" class="history-grid">
@@ -243,7 +243,7 @@
 
           <div class="card" style="margin-bottom:20px">
             <div class="card-header">
-              <h3>Recent Forum Activity</h3>
+              <h3 data-i18n="dashboard.recent_forum">Recent Forum Activity</h3>
               <a href="/forum.html" style="font-size:0.78rem;color:var(--blue)">View all →</a>
             </div>
             <div id="recent-posts" class="recent-posts">
@@ -253,7 +253,7 @@
 
           <div class="card">
             <div class="card-header">
-              <h3>Analysis Queue</h3>
+              <h3 data-i18n="dashboard.analysis_queue">Analysis Queue</h3>
               <span id="queue-count" style="font-size:0.72rem;color:var(--text-muted)"></span>
             </div>
             <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:12px">
@@ -265,7 +265,7 @@
                 <input type="text" id="queue-ticker-input" placeholder="Ticker…" maxlength="10" autocomplete="off">
               </div>
               <input type="text" id="queue-notes-input" class="queue-notes-input" placeholder="Optional note (e.g. 'earnings next week')…">
-              <button class="btn btn-primary" id="queue-submit-btn">Add to Queue</button>
+              <button class="btn btn-primary" id="queue-submit-btn" data-i18n="dashboard.queue_submit">Add to Queue</button>
             </div>
             <div id="queue-process-toast" style="display:none" class="process-toast">
               <div class="spinner" style="width:14px;height:14px;border-width:2px"></div>
@@ -280,7 +280,7 @@
         <!-- Sidebar -->
         <div>
           <div class="card" style="margin-bottom:14px">
-            <h4 style="margin-bottom:10px">Alpha Vantage API Usage</h4>
+            <h4 style="margin-bottom:10px" data-i18n="dashboard.data_quota">Stock Data Quota</h4>
             <div id="api-usage-wrap">
               <div class="loading-block"><div class="spinner"></div></div>
             </div>

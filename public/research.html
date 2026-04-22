@@ -74,14 +74,14 @@
             <div class="research-company-name" id="r-company"></div>
           </div>
           <div class="research-actions">
-            <button class="btn btn-ghost btn-sm" id="note-btn">+ Private Note</button>
-            <button class="btn btn-ghost btn-sm" id="forum-btn">Share to Forum</button>
+            <button class="btn btn-ghost btn-sm" id="note-btn" data-i18n="research.private_note">+ Private Note</button>
+            <button class="btn btn-ghost btn-sm" id="forum-btn" data-i18n="research.share_forum">Share to Forum</button>
           </div>
         </div>
 
         <!-- 1. Snapshot Card -->
         <div id="snapshot-section">
-          <div class="section-divider"><h2>Company Snapshot</h2></div>
+          <div class="section-divider"><h2 data-i18n="research.company_snapshot">Company Snapshot</h2></div>
           <div id="snapshot-card" class="snapshot-card">
             <div class="loading-block"><div class="spinner"></div> Loading market data…</div>
           </div>
@@ -89,20 +89,20 @@
 
         <!-- 1.5 Analyst Sentiment -->
         <div id="analyst-section" style="display:none">
-          <div class="section-divider"><h2>Analyst Sentiment</h2></div>
+          <div class="section-divider"><h2 data-i18n="research.analyst_sentiment">Analyst Sentiment</h2></div>
           <div id="analyst-card"></div>
         </div>
 
         <!-- 2. Financial Table -->
         <div id="fin-table-section" class="fin-table-section">
-          <div class="section-divider"><h2>Quarterly Financial Model</h2></div>
+          <div class="section-divider"><h2 data-i18n="research.quarterly_model">Quarterly Financial Model</h2></div>
           <div id="fin-table-wrap" class="fin-table-wrap">
             <div class="loading-block"><div class="spinner"></div> Fetching SEC EDGAR data…</div>
           </div>
         </div>
 
         <!-- 3. AI Analysis -->
-        <div class="section-divider"><h2>AI Analyst Notes</h2></div>
+        <div class="section-divider"><h2 data-i18n="research.ai_notes">AI Analyst Notes</h2></div>
         <div class="ai-panel" id="ai-panel">
           <div class="ai-panel-header" id="ai-panel-toggle">
             <div class="title">
@@ -117,13 +117,13 @@
         </div>
 
         <!-- 4. Metrics Cards -->
-        <div class="section-divider"><h2>Key Metrics</h2></div>
+        <div class="section-divider"><h2 data-i18n="research.key_metrics">Key Metrics</h2></div>
         <div id="metrics-cards" class="metrics-cards">
           <div class="loading-block"><div class="spinner"></div></div>
         </div>
 
         <!-- 5. News Feed -->
-        <div class="section-divider"><h2>Recent News</h2></div>
+        <div class="section-divider"><h2 data-i18n="research.recent_news">Recent News</h2></div>
         <div id="news-section" class="news-section">
           <div id="news-list" class="news-list">
             <div class="loading-block"><div class="spinner"></div> Fetching news…</div>
@@ -131,7 +131,7 @@
         </div>
 
         <!-- 6. Private Notes for this ticker -->
-        <div class="section-divider"><h2>My Notes</h2></div>
+        <div class="section-divider"><h2 data-i18n="research.my_notes">My Notes</h2></div>
         <div id="notes-section" class="research-notes-section">
           <div id="notes-list"></div>
         </div>
@@ -155,8 +155,8 @@
           <div class="card">
             <h3 style="margin-bottom:12px">Share to Forum</h3>
             <div style="display:flex;gap:6px;margin-bottom:10px">
-              <button class="btn btn-ghost btn-sm type-select active" data-type="Analysis Share">Analysis Share</button>
-              <button class="btn btn-ghost btn-sm type-select" data-type="Watchlist Add">Watchlist Add</button>
+              <button class="btn btn-ghost btn-sm type-select active" data-type="Analysis Share" data-i18n="research.analysis_share">Analysis Share</button>
+              <button class="btn btn-ghost btn-sm type-select" data-type="Watchlist Add" data-i18n="research.watchlist_add">Watchlist Add</button>
             </div>
             <textarea class="textarea" id="forum-content" placeholder="Share your thoughts on this ticker…" rows="3"></textarea>
             <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">

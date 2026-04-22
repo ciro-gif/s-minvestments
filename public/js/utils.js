@@ -126,40 +126,56 @@ const Utils = {
     const lines = text.split('\n');
     const html = [];
     let inList = false;
+    let inOrderedList = false;
 
     for (const raw of lines) {
       const line = raw.trimEnd();
 
       if (line.startsWith('# ') && !line.startsWith('## ')) {
         if (inList) { html.push('</ul>'); inList = false; }
+        if (inOrderedList) { html.push('</ol>'); inOrderedList = false; }
         html.push(`<h2>${this._inline(line.slice(2))}</h2>`);
         continue;
       }
       if (line.startsWith('## ')) {
         if (inList) { html.push('</ul>'); inList = false; }
+        if (inOrderedList) { html.push('</ol>'); inOrderedList = false; }
         html.push(`<h2>${this._inline(line.slice(3))}</h2>`);
         continue;
       }
       if (line.startsWith('### ')) {
         if (inList) { html.push('</ul>'); inList = false; }
+        if (inOrderedList) { html.push('</ol>'); inOrderedList = false; }
         html.push(`<h3>${this._inline(line.slice(4))}</h3>`);
         continue;
       }
       if (line.startsWith('- ') || line.startsWith('* ')) {
+        if (inOrderedList) { html.push('</ol>'); inOrderedList = false; }
         if (!inList) { html.push('<ul>'); inList = true; }
         html.push(`<li>${this._inline(line.slice(2))}</li>`);
         continue;
       }
+      // Ordered list
+      const numMatch = line.match(/^(\d+)\.\s+(.*)/);
+      if (numMatch) {
+        if (inList) { html.push('</ul>'); inList = false; }
+        if (!inOrderedList) { html.push('<ol>'); inOrderedList = true; }
+        html.push(`<li>${this._inline(numMatch[2])}</li>`);
+        continue;
+      }
       if (line === '' || line === '---') {
         if (inList) { html.push('</ul>'); inList = false; }
+        if (inOrderedList) { html.push('</ol>'); inOrderedList = false; }
         if (line === '---') html.push('<hr style="border-color:var(--border);margin:12px 0">');
         continue;
       }
       if (inList) { html.push('</ul>'); inList = false; }
+      if (inOrderedList) { html.push('</ol>'); inOrderedList = false; }
       html.push(`<p>${this._inline(line)}</p>`);
     }
 
     if (inList) html.push('</ul>');
+    if (inOrderedList) html.push('</ol>');
     return html.join('\n');
   },
 

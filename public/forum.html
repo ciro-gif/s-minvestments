@@ -57,15 +57,15 @@
           <!-- Post composer -->
           <div class="post-composer">
             <div class="composer-header">
-              <h3>New Post</h3>
+              <h3 data-i18n="forum.new_post">New Post</h3>
             </div>
             <div class="composer-type-tabs">
-              <button class="type-tab active" data-type="Analysis Share">Analysis Share</button>
-              <button class="type-tab" data-type="Watchlist Add">Watchlist Add</button>
-              <button class="type-tab" data-type="General Discussion">General Discussion</button>
+              <button class="type-tab active" data-type="Analysis Share" data-i18n="forum.analysis_share">Analysis Share</button>
+              <button class="type-tab" data-type="Watchlist Add" data-i18n="forum.watchlist_add">Watchlist Add</button>
+              <button class="type-tab" data-type="General Discussion" data-i18n="forum.general">General Discussion</button>
             </div>
             <div class="composer-body">
-              <textarea class="textarea" id="post-content" placeholder="Share your analysis, watchlist pick, or discussion…" rows="3"></textarea>
+              <textarea class="textarea" id="post-content" data-i18n="forum.write_post" placeholder="Share your analysis, watchlist pick, or discussion…" rows="3"></textarea>
               <div class="composer-extras">
                 <input class="input" id="post-ticker" type="text" placeholder="$TICKER (optional)" maxlength="10" style="max-width:150px; text-transform:uppercase; font-family:var(--font-mono)">
                 <label class="img-upload-btn">
@@ -81,16 +81,16 @@
             </div>
             <div class="composer-footer">
               <span id="composer-error" class="form-error" style="margin-right:auto"></span>
-              <button class="btn btn-primary" id="post-submit">Post</button>
+              <button class="btn btn-primary" id="post-submit" data-i18n="forum.post">Post</button>
             </div>
           </div>
 
           <!-- Filters -->
           <div class="posts-filters">
-            <button class="filter-btn active" data-filter="all">All Posts</button>
-            <button class="filter-btn" data-filter="Analysis Share">Analysis</button>
-            <button class="filter-btn" data-filter="Watchlist Add">Watchlist</button>
-            <button class="filter-btn" data-filter="General Discussion">Discussion</button>
+            <button class="filter-btn active" data-filter="all" data-i18n="forum.all_posts">All Posts</button>
+            <button class="filter-btn" data-filter="Analysis Share" data-i18n="forum.analysis">Analysis</button>
+            <button class="filter-btn" data-filter="Watchlist Add" data-i18n="forum.watchlist">Watchlist</button>
+            <button class="filter-btn" data-filter="General Discussion" data-i18n="forum.discussion">Discussion</button>
           </div>
 
           <!-- Posts -->
@@ -102,14 +102,14 @@
         <!-- Sidebar -->
         <div class="forum-sidebar">
           <div class="sidebar-card">
-            <h4>Members</h4>
+            <h4 data-i18n="forum.members">Members</h4>
             <div id="sidebar-members" class="sidebar-members">
               <div class="loading-block" style="padding:12px 0"><div class="spinner"></div></div>
             </div>
           </div>
 
           <div class="sidebar-card">
-            <h4>Recent Tickers</h4>
+            <h4 data-i18n="forum.recent_tickers">Recent Tickers</h4>
             <div id="sidebar-tickers" class="sidebar-ticker-list">
               <div class="loading-block" style="padding:12px 0"><div class="spinner"></div></div>
             </div>

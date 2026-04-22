@@ -230,15 +230,15 @@
             <div class="profile-stats">
               <div class="profile-stat">
                 <div class="num" id="stat-researched">—</div>
-                <div class="label">Tickers</div>
+                <div class="label" data-i18n="profile.tickers_label">Tickers</div>
               </div>
               <div class="profile-stat">
                 <div class="num" id="stat-posts">—</div>
-                <div class="label">Posts</div>
+                <div class="label" data-i18n="profile.posts_label">Posts</div>
               </div>
               <div class="profile-stat">
                 <div class="num" id="stat-notes">—</div>
-                <div class="label">Notes</div>
+                <div class="label" data-i18n="profile.notes_label">Notes</div>
               </div>
             </div>
           </div>
@@ -247,9 +247,9 @@
         <!-- Right: tabs -->
         <div>
           <div class="tab-bar">
-            <button class="tab-btn active" data-tab="edit">Edit Profile</button>
-            <button class="tab-btn" data-tab="history">Research History</button>
-            <button class="tab-btn" data-tab="notes">Private Notes</button>
+            <button class="tab-btn active" data-tab="edit" data-i18n="profile.edit_profile">Edit Profile</button>
+            <button class="tab-btn" data-tab="history" data-i18n="profile.research_history">Research History</button>
+            <button class="tab-btn" data-tab="notes" data-i18n="profile.private_notes">Private Notes</button>
           </div>
 
           <!-- Edit Profile -->
@@ -258,15 +258,15 @@
               <h3 style="margin-bottom:16px">Profile Settings</h3>
               <form id="profile-form" class="profile-edit-form">
                 <div class="form-group">
-                  <label class="form-label">Display Name</label>
+                  <label class="form-label" data-i18n="profile.display_name">Display Name</label>
                   <input class="input" type="text" id="edit-name" maxlength="40" placeholder="Your name">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Bio</label>
+                  <label class="form-label" data-i18n="profile.bio">Bio</label>
                   <textarea class="textarea" id="edit-bio" maxlength="200" placeholder="Short bio (optional)" rows="3"></textarea>
                 </div>
                 <div id="profile-msg"></div>
-                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <button type="submit" class="btn btn-primary" data-i18n="profile.save_changes">Save Changes</button>
               </form>
             </div>
           </div>

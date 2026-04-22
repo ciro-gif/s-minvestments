@@ -13,10 +13,11 @@ const UA = 'SM-Investments-Portal/1.0 (research@sminvestments.com)';
 // Maps our row keys to ordered lists of XBRL concept names to try
 const CONCEPT_MAP = {
   totalRevenue: [
-    'Revenues',
     'RevenueFromContractWithCustomerExcludingAssessedTax',
+    'Revenues',
     'RevenueFromContractWithCustomerIncludingAssessedTax',
     'SalesRevenueNet',
+    'SalesRevenueGoodsNet',
     'RevenuesNetOfInterestExpense',
   ],
   automotiveRevenue: [
@@ -99,9 +100,16 @@ async function getCIK(ticker) {
   });
   if (!resp.ok) throw new Error('SEC ticker lookup failed');
   const data = await resp.json();
-  const entry = Object.values(data).find(
-    c => c.ticker.toUpperCase() === ticker.toUpperCase()
-  );
+
+  const upperTicker = ticker.toUpperCase();
+  let entry = Object.values(data).find(c => c.ticker.toUpperCase() === upperTicker);
+
+  // Retry with dots stripped (BRK.B → BRKB — SEC stores as BRKB)
+  if (!entry && ticker.includes('.')) {
+    const stripped = ticker.replace(/\./g, '').toUpperCase();
+    entry = Object.values(data).find(c => c.ticker?.toUpperCase() === stripped);
+  }
+
   if (!entry) throw new Error(`Ticker "${ticker}" not found in SEC EDGAR`);
   return { cik: String(entry.cik_str).padStart(10, '0'), name: entry.title };
 }
@@ -174,15 +182,15 @@ function buildQuarterLabel(endDate) {
 }
 
 function alignMetrics(rawMetrics) {
-  // Use whichever metric has the most entries to define the canonical quarter set
-  let canonicalDates = [];
-  let maxLen = 0;
-  for (const series of Object.values(rawMetrics)) {
-    if (series.length > maxLen) {
-      maxLen = series.length;
-      canonicalDates = series.map(s => s.end);
+  // Build UNION of all end dates across all metric series (no quarters dropped)
+  const allDates = new Set();
+  for (const arr of Object.values(rawMetrics)) {
+    if (!Array.isArray(arr)) continue;
+    for (const item of arr) {
+      if (item && item.end) allDates.add(item.end);
     }
   }
+  const canonicalDates = [...allDates].sort().slice(-12);
 
   const quarters = canonicalDates.map(buildQuarterLabel);
 

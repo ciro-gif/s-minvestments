@@ -1,5 +1,5 @@
-// News proxy — Alpha Vantage NEWS_SENTIMENT (same key as stock data, sentiment pre-scored)
-// Docs: https://www.alphavantage.co/documentation/#news-sentiment
+// News fetch — NewsAPI.org with inline Claude sentiment classification
+const { retryFetch } = require('./_utils');
 
 const CORS = {
   'Content-Type': 'application/json',
@@ -8,76 +8,93 @@ const CORS = {
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
 };
 
-function mapSentiment(label) {
-  if (!label) return 'Neutral';
-  const l = label.toLowerCase();
-  if (l.includes('bearish')) return 'Bearish';
-  if (l.includes('bullish')) return 'Bullish';
-  return 'Neutral';
-}
-
-function parseAVDate(str) {
-  // Alpha Vantage format: "20231201T123456"
-  if (!str || str.length < 8) return null;
+async function classifyNews(articles, ticker, anthropicKey) {
+  if (!anthropicKey || articles.length === 0) {
+    return articles.map(a => ({ ...a, sentiment: 'Neutral', sentimentScore: null }));
+  }
   try {
-    return new Date(
-      `${str.slice(0,4)}-${str.slice(4,6)}-${str.slice(6,8)}T${str.slice(9,11)}:${str.slice(11,13)}:${str.slice(13,15)}Z`
-    ).toISOString();
-  } catch { return null; }
+    const titles = articles.map((a, i) => `${i + 1}. ${a.title}`).join('\n');
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': anthropicKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 200,
+        messages: [{
+          role: 'user',
+          content: `Classify each headline as Bullish, Bearish, or Neutral for ${ticker} investors. Reply ONLY with a JSON array of strings, one per headline in order. Example: ["Bullish","Neutral","Bearish"]\n\n${titles}`,
+        }],
+      }),
+    });
+    if (!resp.ok) return articles.map(a => ({ ...a, sentiment: 'Neutral', sentimentScore: null }));
+    const data = await resp.json();
+    const text = data.content?.[0]?.text || '[]';
+    const match = text.match(/\[[\s\S]*\]/);
+    const labels = match ? JSON.parse(match[0]) : [];
+    return articles.map((a, i) => ({ ...a, sentiment: labels[i] || 'Neutral', sentimentScore: null }));
+  } catch {
+    return articles.map(a => ({ ...a, sentiment: 'Neutral', sentimentScore: null }));
+  }
 }
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS, body: '' };
 
-  const { ticker } = event.queryStringParameters || {};
-  if (!ticker) {
-    return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'ticker param required' }) };
-  }
+  const { ticker, company } = event.queryStringParameters || {};
+  if (!ticker) return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'ticker required' }) };
 
-  const key = process.env.ALPHA_VANTAGE_API_KEY;
-  if (!key) {
-    return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: 'ALPHA_VANTAGE_API_KEY not configured' }) };
-  }
+  const newsKey = process.env.NEWS_API_KEY;
+  if (!newsKey) return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: 'NEWS_API_KEY not configured' }) };
 
-  const url = `https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers=${encodeURIComponent(ticker.toUpperCase())}&limit=15&sort=LATEST&apikey=${key}`;
+  const from = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString().split('T')[0];
+  const q = company ? `${ticker} OR "${company}"` : ticker;
 
   try {
-    const resp = await fetch(url);
-    const data = await resp.json();
+    const res = await retryFetch(
+      `https://newsapi.org/v2/everything?q=${encodeURIComponent(q)}&sortBy=publishedAt&pageSize=20&language=en&from=${from}`,
+      { headers: { 'X-Api-Key': newsKey } }
+    );
 
-    // Alpha Vantage returns { Information: "..." } on rate limit
-    if (data.Information || data.Note) {
-      throw new Error(data.Information || data.Note);
-    }
+    const data = await res.json();
+    if (data.status !== 'ok') throw new Error(data.message || 'NewsAPI error');
 
-    const feed = data.feed || [];
-    const upperTicker = ticker.toUpperCase();
+    let articles = (data.articles || []).filter(a => a.title && a.title !== '[Removed]');
 
-    // Keep only articles where the searched ticker has relevance_score >= 0.3
-    // Alpha Vantage returns articles that merely mention the ticker; this filters
-    // for articles actually focused on it.
-    const relevant = feed.filter(item => {
-      const ts = (item.ticker_sentiment || []).find(
-        t => t.ticker === upperTicker
-      );
-      return ts && parseFloat(ts.relevance_score) >= 0.3;
+    // Relevance guard: keep articles mentioning ticker or company name
+    const tickerLower = ticker.toLowerCase();
+    const companyLower = (company || '').toLowerCase().replace(/,?\s*(inc|corp|ltd|llc|co)\.?$/i, '').trim();
+    const relevant = articles.filter(a => {
+      const text = `${a.title} ${a.description || ''}`.toLowerCase();
+      return text.includes(tickerLower) || (companyLower.length > 2 && text.includes(companyLower));
     });
 
-    // Fall back to top articles if nothing passes the threshold (avoids empty feed)
-    const source = relevant.length >= 3 ? relevant : feed;
+    const lowRelevance = relevant.length < 3;
+    const candidates = lowRelevance ? articles.slice(0, 10) : relevant.slice(0, 15);
 
-    const articles = source.slice(0, 10).map(item => ({
-      title: item.title,
-      description: item.summary?.slice(0, 200),
-      source: item.source,
-      url: item.url,
-      publishedAt: parseAVDate(item.time_published),
-      sentiment: mapSentiment(item.overall_sentiment_label),
-      sentimentScore: item.overall_sentiment_score,
+    // Map to clean shape before classification
+    const mapped = candidates.map(a => ({
+      title: a.title,
+      description: a.description || '',
+      source: a.source?.name || '',
+      url: a.url,
+      publishedAt: a.publishedAt,
+      sentiment: 'Neutral',
+      sentimentScore: null,
     }));
 
-    return { statusCode: 200, headers: CORS, body: JSON.stringify({ articles }) };
+    // Classify with Claude
+    const classified = await classifyNews(mapped, ticker, process.env.ANTHROPIC_API_KEY);
+
+    return {
+      statusCode: 200,
+      headers: CORS,
+      body: JSON.stringify({ articles: classified, lowRelevance }),
+    };
   } catch (err) {
-    return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: err.message, articles: [] }) };
+    return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: err.message }) };
   }
 };

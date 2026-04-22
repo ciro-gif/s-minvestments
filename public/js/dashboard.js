@@ -4,7 +4,9 @@
 
 (async () => {
   await requireAuth();
+  let _processing = false;
   I18n.init();
+  setTimeout(() => document.getElementById('ticker-input')?.focus(), 50);
 
   // ---- Search ----
   const tickerInput = document.getElementById('ticker-input');
@@ -205,21 +207,13 @@
       .gte('called_at', `${today}T00:00:00Z`);
 
     const used = (data || []).reduce((sum, r) => sum + r.calls_consumed, 0);
-    const remaining = Math.max(0, 25 - used);
-    const pct = Math.min(100, (used / 25) * 100);
-    const barColor = pct >= 80 ? 'var(--red)' : pct >= 50 ? 'var(--amber)' : 'var(--green)';
-    const processable = Math.floor(remaining / 3);
 
     el.innerHTML = `
-      <div style="display:flex;justify-content:space-between;font-size:0.78rem">
-        <span style="color:var(--text-muted)">${used} / 25 calls used today</span>
-        <span style="color:${barColor};font-weight:600">${remaining} remaining</span>
+      <div style="font-size:0.78rem;color:var(--text-muted)">
+        Today: ${used} request${used !== 1 ? 's' : ''} across all providers.
       </div>
-      <div class="usage-bar-wrap">
-        <div class="usage-bar-fill" style="width:${pct}%;background:${barColor}"></div>
-      </div>
-      <div style="font-size:0.68rem;color:var(--text-dim)">
-        Resets midnight UTC · ~${processable} ticker${processable !== 1 ? 's' : ''} can auto-process today
+      <div style="font-size:0.68rem;color:var(--text-dim);margin-top:4px">
+        Resets midnight UTC
       </div>
     `;
   }
@@ -316,13 +310,22 @@
   // Auto-processor — runs on page load, uses spare daily API budget
   // ================================================================
 
-  let _processing = false;
-
   async function autoProcess() {
+    // Throttle: skip if ran within last 10 minutes
+    const lastRun = parseInt(localStorage.getItem('sm_autoprocess_last') || '0');
+    if (Date.now() - lastRun < 10 * 60 * 1000) return;
+
     if (_processing) return;
     _processing = true;
 
     try {
+      // Early exit if no pending items
+      const { count } = await SM.supabase
+        .from('ticker_queue')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending');
+      if (!count || count === 0) { _processing = false; return; }
+
       const today = new Date().toISOString().split('T')[0];
       const { data: usageRows } = await SM.supabase
         .from('api_usage_log')
@@ -408,7 +411,7 @@
 
       toast.style.display = 'none';
       await Promise.all([loadApiUsage(), loadQueue(), loadHistory()]);
-
+      localStorage.setItem('sm_autoprocess_last', String(Date.now()));
     } finally {
       _processing = false;
     }

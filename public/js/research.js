@@ -184,8 +184,8 @@
       SM.supabase.from('api_usage_log').insert({ ticker, calls_consumed: 2 }).then(() => {});
     }
 
-    // Render company name
-    const companyName = edgarData?.company || stockData?.name || ticker;
+    // Render company name — prefer stockData.name (Title Case) over EDGAR (ALL CAPS)
+    const companyName = stockData?.name || edgarData?.company || ticker;
     document.getElementById('r-company').textContent = companyName;
     document.title = `$${ticker} — S&M Investments`;
 
@@ -228,7 +228,17 @@
 
     // AI from cache with refresh option
     const aiBody = document.getElementById('ai-panel-body');
-    if (snap.ai_analysis) {
+
+    // Detect language mismatch between cached analysis and current UI language
+    const hasSpanishChars = /[áéíóúñ¿¡]/.test(snap.ai_analysis || '');
+    const currentLang = typeof I18n !== 'undefined' ? I18n.getLang() : 'en';
+    const langMismatch = snap.ai_analysis && (
+      (hasSpanishChars && currentLang === 'en') ||
+      (!hasSpanishChars && currentLang === 'es')
+    );
+    const langLabel = currentLang === 'es' ? 'Español' : 'English';
+
+    if (snap.ai_analysis && !langMismatch) {
       aiBody.innerHTML = `
         <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface2);border-radius:var(--radius);margin-bottom:12px;font-size:0.75rem;color:var(--text-muted)">
           <span style="color:var(--amber)">●</span>
@@ -240,6 +250,26 @@
       aiBody.classList.add('open');
       document.getElementById('ai-chevron').classList.add('open');
       document.getElementById('snap-refresh-btn').addEventListener('click', () => runResearch(ticker, true));
+    } else if (snap.ai_analysis && langMismatch) {
+      aiBody.innerHTML = `
+        <div style="padding:20px;text-align:center">
+          <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:12px">
+            AI analysis was generated in a different language.
+          </p>
+          <button class="btn btn-primary btn-sm" id="snap-lang-refresh">
+            Re-generate in ${langLabel}
+          </button>
+          <button class="btn btn-ghost btn-sm" id="snap-show-cached" style="margin-left:8px">
+            Show cached anyway
+          </button>
+        </div>
+      `;
+      aiBody.classList.add('open');
+      document.getElementById('ai-chevron').classList.add('open');
+      document.getElementById('snap-lang-refresh')?.addEventListener('click', () => runResearch(ticker, true));
+      document.getElementById('snap-show-cached')?.addEventListener('click', () => {
+        aiBody.innerHTML = `<div class="ai-content">${Utils.renderMarkdown(snap.ai_analysis)}</div>`;
+      });
     } else {
       aiBody.innerHTML = '<div style="color:var(--text-muted);font-size:0.82rem;padding:12px">No AI analysis cached.</div>';
     }
@@ -284,7 +314,15 @@
   function renderSnapshot(d, ticker) {
     const el = document.getElementById('snapshot-card');
     if (!d) {
-      el.innerHTML = `<div class="alert alert-warning">Market data unavailable for ${ticker}. Tried Alpha Vantage and Yahoo Finance — the ticker may be invalid, delisted, or temporarily unavailable.</div>`;
+      el.innerHTML = `
+        <div class="alert alert-warning">
+          <strong>No data found for ${Utils.escHtml(ticker)}</strong><br>
+          <span style="font-size:0.8rem;display:block;margin-top:6px">
+            Suggestions: check spelling · use primary share class (e.g. BRK.B → BRK-B) ·
+            confirm the ticker is actively traded on US exchanges.
+          </span>
+        </div>
+      `;
       return;
     }
 
@@ -293,9 +331,15 @@
     const changeCls = changeVal > 0 ? 'pos' : changeVal < 0 ? 'neg' : 'zero';
     const price = d.price ? `$${parseFloat(d.price).toFixed(2)}` : '—';
     const mktCap = d.marketCap ? Utils.fmtMoney(Number(d.marketCap)) : '—';
-    const changeDisplay = (Math.abs(changeVal) < 0.005 && !d.changePercent)
-      ? '<span style="color:var(--text-dim);font-size:0.8rem">Market closed</span>'
-      : `${changeSign}${changeVal.toFixed(2)} (${d.changePercent || '—'})`;
+
+    let changeDisplay;
+    if (!d.price && d.marketState === 'CLOSED') {
+      changeDisplay = '<span style="color:var(--text-dim);font-size:0.8rem">Market closed</span>';
+    } else if (!d.changePercent && Math.abs(changeVal) < 0.005) {
+      changeDisplay = '—';
+    } else {
+      changeDisplay = `${changeSign}${changeVal.toFixed(2)} (${d.changePercent || '—'})`;
+    }
 
     const grid = [
       ['Market Cap',     mktCap],
@@ -305,7 +349,7 @@
       ['EPS',            d.eps ? `$${parseFloat(d.eps).toFixed(2)}` : '—'],
       ['Dividend Yield', d.dividendYield ? Utils.fmtPct(parseFloat(d.dividendYield)/100) : '—'],
       ['Beta',           d.beta ? parseFloat(d.beta).toFixed(2) : '—'],
-      ['Avg Volume',     d.avgVolume ? Utils.fmtMoneyShort(Number(d.avgVolume)) : '—'],
+      ['Avg Volume',     d.avgVolume ? Utils.fmtMoneyShort(Number(d.avgVolume)).replace(/\$/g, '') : '—'],
       ['Float',          d.sharesFloat ? Utils.fmtMoney(Number(d.sharesFloat)) : '—'],
       ['Short Float %',  d.shortPercentFloat ? Utils.fmtPct(parseFloat(d.shortPercentFloat)/100) : '—'],
       ['Next Earnings',  d.nextEarnings ? Utils.fmtDate(d.nextEarnings) : '—'],
@@ -667,12 +711,21 @@
       else latestFmt = String(latest);
 
       if (prev !== null && prev !== undefined) {
-        const delta = card.format === 'pct'
-          ? ((latest - prev) * 100).toFixed(1) + 'pp'
-          : Utils.fmtMoneyShort(latest - prev);
-        const sign = latest >= prev ? '+' : '';
         const cls = latest >= prev ? 'pos' : 'neg';
-        change = `<div class="metric-change ${cls}">${sign}${delta} QoQ</div>`;
+
+        if (card.format === 'eps') {
+          const absDelta = Math.abs(latest - prev).toFixed(2);
+          const prefix = latest >= prev ? '+' : '-';
+          change = `<div class="metric-change ${cls}">${prefix}$${absDelta} QoQ</div>`;
+        } else if (card.format === 'pct') {
+          const delta = ((latest - prev) * 100).toFixed(1) + 'pp';
+          const sign = latest >= prev ? '+' : '';
+          change = `<div class="metric-change ${cls}">${sign}${delta} QoQ</div>`;
+        } else {
+          const delta = Utils.fmtMoneyShort(latest - prev);
+          const sign = latest >= prev ? '+' : '';
+          change = `<div class="metric-change ${cls}">${sign}${delta} QoQ</div>`;
+        }
       }
 
       return `

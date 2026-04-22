@@ -18,6 +18,18 @@ function fmtVal(val, key) {
 }
 
 function buildPrompt(ticker, company, quarters, metrics, stockData, lang) {
+  metrics = metrics || {};
+  quarters = quarters || [];
+
+  // If no financial data available, use shorter overview prompt
+  if (Object.keys(metrics).length === 0 || quarters.length === 0) {
+    const langInstr = lang === 'es' ? 'IMPORTANTE: Escribe TODA tu respuesta en español.\n\n' : '';
+    const stockSummary = stockData
+      ? `Price: $${stockData.price || 'N/A'}, Market Cap: ${stockData.marketCap ? '$' + (Number(stockData.marketCap)/1e9).toFixed(1) + 'B' : 'N/A'}, P/E: ${stockData.pe || 'N/A'}, Sector: ${stockData.sector || 'N/A'}`
+      : 'No market data available.';
+    return `${langInstr}You are a senior financial analyst writing for S&M Investments, an investment club of beginners. No quarterly SEC filing data is available for ${ticker} (${company || ticker}). Write a 2–3 paragraph educational overview based only on the market data below. Explain what type of company/fund this is, its market context, and 2–3 key things a beginner should know before investing. Be clear and jargon-free.\n\n${stockSummary}\n\n## Executive Summary\n`;
+  }
+
   const inSpanish = lang === 'es';
 
   const ROWS = {
@@ -90,7 +102,9 @@ ${tableRows}
 ${marginContext}
 ${stockSummary}
 
-Write a complete analyst research note with the following sections. Use ## for section headers. Do NOT add a document title at the top.
+CRITICAL FORMATTING RULE: Your response MUST start with the literal text '## Executive Summary' as the very first characters. Do NOT include a title, company header, 'RESEARCH NOTE:' line, ticker symbol, or any introductory text before it.
+
+Write a complete analyst research note with the following sections. Use ## for section headers.
 
 ## Executive Summary
 Write 2–3 paragraphs that tell the full story of this business. What has happened to revenue, profitability, and efficiency over this period? Is the trend improving or deteriorating? What is the single most important thing an investor should know about this company right now? Be specific with numbers.
@@ -164,7 +178,12 @@ exports.handler = async (event) => {
     const data = await resp.json();
     const analysis = data.content?.[0]?.text || '';
 
-    return { statusCode: 200, headers: CORS, body: JSON.stringify({ analysis }) };
+    // Strip any content before the first ## heading (AI sometimes adds a title despite instruction)
+    let processedAnalysis = analysis;
+    const firstH2 = processedAnalysis.indexOf('## ');
+    if (firstH2 > 0) processedAnalysis = processedAnalysis.slice(firstH2);
+
+    return { statusCode: 200, headers: CORS, body: JSON.stringify({ analysis: processedAnalysis }) };
   } catch (err) {
     return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: err.message }) };
   }
