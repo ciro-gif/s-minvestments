@@ -1,0 +1,18 @@
+# Environment variables — NEVER commit real keys
+.env
+.env.local
+.env.*.local
+
+# Node
+node_modules/
+npm-debug.log*
+
+# macOS
+.DS_Store
+.AppleDouble
+
+# Netlify
+.netlify/
+
+# Build output
+dist/

@@ -35,7 +35,7 @@ _Last updated: April 2026_
 | Service | Key Name | Where to Get | Free Tier |
 |---------|---------|-------------|-----------|
 | **Anthropic** | `ANTHROPIC_API_KEY` | https://console.anthropic.com | Pay-per-token (very cheap for Haiku) |
-| **Polygon.io** | `POLYGON_API_KEY` | https://polygon.io | Free: unlimited requests, 5 req/min |
+| **Massive** (formerly Polygon.io) | `POLYGON_API_KEY` | https://massive.com | Free: unlimited requests, 5 req/min |
 | **Financial Modeling Prep** | `FMP_API_KEY` | https://financialmodelingprep.com | Free: 250 requests/day |
 | **NewsAPI** | `NEWS_API_KEY` | https://newsapi.org | Free: 1,000 requests/day (dev plan) |
 | **Supabase** | `SUPABASE_URL` + `SUPABASE_ANON_KEY` | https://supabase.com | Free tier included |

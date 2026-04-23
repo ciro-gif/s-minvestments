@@ -1,4 +1,4 @@
-// Stock data proxy — Polygon.io primary, Yahoo Finance fallback
+// Stock data proxy — Massive (massive.com, formerly Polygon.io) primary, Yahoo Finance fallback
 const { retryFetch } = require('./_utils');
 
 const CORS = {
@@ -10,7 +10,7 @@ const CORS = {
 
 async function fetchPolygon(ticker, key) {
   const sym = encodeURIComponent(ticker.toUpperCase());
-  const base = 'https://api.polygon.io';
+  const base = 'https://api.massive.com';
 
   const [refRes, snapRes] = await Promise.allSettled([
     retryFetch(`${base}/v3/reference/tickers/${sym}?apiKey=${key}`),
