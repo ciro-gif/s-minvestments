@@ -1,4 +1,6 @@
-// Stock data proxy — Massive (massive.com, formerly Polygon.io) primary, Yahoo Finance fallback
+// Stock data proxy — Yahoo Finance (fundamentals) + Massive/Polygon (real-time price overlay)
+// Strategy: always run Yahoo first so P/E, EPS, beta, 52W range, etc. are populated.
+// Then optionally enrich the live price with Massive if a key is configured.
 const { retryFetch } = require('./_utils');
 
 const CORS = {
@@ -8,61 +10,11 @@ const CORS = {
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
 };
 
-async function fetchPolygon(ticker, key) {
-  const sym = encodeURIComponent(ticker.toUpperCase());
-  const base = 'https://api.massive.com';
-
-  const [refRes, snapRes] = await Promise.allSettled([
-    retryFetch(`${base}/v3/reference/tickers/${sym}?apiKey=${key}`),
-    retryFetch(`${base}/v2/snapshot/locale/us/markets/stocks/tickers/${sym}?apiKey=${key}`),
-  ]);
-
-  const ref = refRes.status === 'fulfilled' ? await refRes.value.json() : null;
-  const snap = snapRes.status === 'fulfilled' ? await snapRes.value.json() : null;
-
-  const r = ref?.results;
-  const t = snap?.ticker;
-
-  if (!r && !t) throw new Error('Polygon returned no data');
-
-  const price = t?.day?.c || t?.prevDay?.c || null;
-  const change = t?.todaysChange ?? null;
-  const changePct = t?.todaysChangePerc ?? null;
-
-  return {
-    symbol: ticker.toUpperCase(),
-    name: r?.name || null,
-    sector: r?.sic_description || null,
-    industry: r?.sic_description || null,
-    description: r?.description || null,
-    marketCap: r?.market_cap || null,
-    pe: null,
-    eps: null,
-    dividendYield: null,
-    beta: null,
-    fiftyTwoWeekHigh: t?.day?.h || null,
-    fiftyTwoWeekLow: t?.day?.l || null,
-    sharesFloat: null,
-    sharesOutstanding: r?.weighted_shares_outstanding || null,
-    shortPercentFloat: null,
-    nextEarnings: null,
-    analystTarget: null,
-    avgVolume: t?.day?.v || null,
-    price,
-    open: t?.day?.o || null,
-    high: t?.day?.h || null,
-    low: t?.day?.l || null,
-    volume: t?.day?.v || null,
-    change,
-    changePercent: changePct != null ? `${changePct.toFixed(2)}%` : null,
-    marketState: t ? 'OPEN' : 'CLOSED',
-    source: 'polygon',
-  };
-}
-
+// ── Yahoo Finance ─────────────────────────────────────────────────────────────
+// Returns ALL fundamental fields: P/E, EPS, beta, dividend yield, 52W range,
+// float, sector, description, analyst target, etc.
 async function fetchYahoo(ticker) {
-  // BRK.B → BRK-B for Yahoo Finance
-  const yahooTicker = ticker.replace('.', '-');
+  const yahooTicker = ticker.replace(/\./g, '-'); // BRK.B → BRK-B
   const sym = encodeURIComponent(yahooTicker.toUpperCase());
   const modules = 'price,summaryDetail,defaultKeyStatistics,assetProfile';
   const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${sym}?modules=${modules}&corsDomain=finance.yahoo.com`;
@@ -85,14 +37,13 @@ async function fetchYahoo(ticker) {
   const k = result.defaultKeyStatistics || {};
   const a = result.assetProfile || {};
 
-  // (a) Missing price fallback — use previous close if current price missing
+  // Price: prefer live, fall back to previous close
   const rawPrice = p.regularMarketPrice?.raw ?? p.regularMarketPreviousClose?.raw ?? null;
   const marketState = p.regularMarketPrice?.raw ? 'OPEN' : 'CLOSED';
 
   const rawChange = p.regularMarketChange?.raw ?? 0;
   const rawPct = p.regularMarketChangePercent?.raw;
 
-  // Compute changePercent from price/change when Yahoo omits it
   let changePercent = null;
   if (rawPct != null) {
     changePercent = `${(rawPct * 100).toFixed(2)}%`;
@@ -101,11 +52,10 @@ async function fetchYahoo(ticker) {
     if (base !== 0) changePercent = `${((rawChange / base) * 100).toFixed(2)}%`;
   }
 
-  // (b) Dividend yield normalization: Yahoo returns decimal (0.0044 = 0.44%).
-  // Multiply by 100 so frontend gets percent-as-decimal (0.44) matching AV format.
+  // Yahoo returns dividend yield as a decimal (0.0044 = 0.44%) — multiply by 100
   const dividendYield = d.dividendYield?.raw != null ? d.dividendYield.raw * 100 : null;
 
-  // (c) Beta: only use defaultKeyStatistics.beta — d.beta doesn't exist in Yahoo
+  // Beta only from defaultKeyStatistics — summaryDetail.beta doesn't exist in Yahoo
   const beta = k.beta?.raw ?? null;
 
   return {
@@ -139,32 +89,72 @@ async function fetchYahoo(ticker) {
   };
 }
 
+// ── Massive/Polygon price overlay ─────────────────────────────────────────────
+// Only used for the live price/change fields — Massive doesn't provide fundamentals
+// on the free tier, so we never use it as the sole data source.
+async function overlayMassivePrice(data, key) {
+  try {
+    const sym = encodeURIComponent(data.symbol);
+    const base = 'https://api.massive.com';
+
+    const snapRes = await retryFetch(
+      `${base}/v2/snapshot/locale/us/markets/stocks/tickers/${sym}?apiKey=${key}`,
+    );
+    const snap = await snapRes.json();
+    const t = snap?.ticker;
+
+    if (!t) return data; // no snapshot available
+
+    const livePrice = t.day?.c || null;
+    const prevClose = t.prevDay?.c || null;
+    const todayChange = t.todaysChange ?? null;
+    const todayChangePct = t.todaysChangePerc ?? null;
+
+    if (livePrice) {
+      data.price = livePrice;
+      data.open = t.day?.o ?? data.open;
+      data.high = t.day?.h ?? data.high;
+      data.low = t.day?.l ?? data.low;
+      data.volume = t.day?.v ?? data.volume;
+      data.change = todayChange ?? data.change;
+      data.changePercent = todayChangePct != null
+        ? `${todayChangePct.toFixed(2)}%`
+        : data.changePercent;
+      data.marketState = 'OPEN';
+      data.source = 'yahoo+massive';
+    } else if (prevClose && !data.price) {
+      // Market closed — use prevDay close if Yahoo also had no price
+      data.price = prevClose;
+      data.source = 'yahoo+massive';
+    }
+  } catch {
+    // Massive failed — Yahoo data is still complete, just continue
+  }
+  return data;
+}
+
+// ── Handler ───────────────────────────────────────────────────────────────────
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS, body: '' };
 
   const { ticker } = event.queryStringParameters || {};
   if (!ticker) return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'ticker param required' }) };
 
-  const polygonKey = process.env.POLYGON_API_KEY;
-
-  // Try Polygon first (if key configured)
-  if (polygonKey) {
-    try {
-      const data = await fetchPolygon(ticker, polygonKey);
-      return { statusCode: 200, headers: CORS, body: JSON.stringify(data) };
-    } catch { /* fall through to Yahoo */ }
-  }
-
-  // Yahoo Finance fallback (handles BRK.B → BRK-B internally)
   try {
+    // 1. Always fetch Yahoo Finance — this gives us all the fundamental fields
     const data = await fetchYahoo(ticker);
+
+    // 2. Optionally enrich live price with Massive (doesn't affect fundamentals)
+    const massiveKey = process.env.POLYGON_API_KEY;
+    if (massiveKey) await overlayMassivePrice(data, massiveKey);
+
     return { statusCode: 200, headers: CORS, body: JSON.stringify(data) };
   } catch {
     return {
       statusCode: 503,
       headers: CORS,
       body: JSON.stringify({
-        error: `Couldn't find data for ${ticker}. Try checking spelling, the primary share class (e.g. BRK.B → BRK-B), or confirm the ticker is still listed.`,
+        error: `Couldn't find data for ${ticker}. Check the spelling, try the primary share class (e.g. BRK.B → BRK-B), or confirm the ticker is still listed.`,
       }),
     };
   }
